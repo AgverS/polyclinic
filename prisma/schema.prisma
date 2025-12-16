@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum DoctorCategory {
+  HIGHEST
+  FIRST
+  SECOND
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  email    String @unique
+  password String
+  fullName String @map("full_name")
+  role     Role   @default(PATIENT)
+
+  feedbacks Feedback[]
+  patient   Patient?
+  doctor    Doctor?
+
+  @@map("user")
+}
+
+model Patient {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  phone     String?
+  birthDate DateTime? @map("birth_date")
+
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id])
+
+  appointments Appointment[]
+
+  @@map("patient")
+}
+
+model Specialty {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  name           String
+  educationStart DateTime @map("education_start")
+  educationEnd   DateTime @map("education_end")
+
+  doctorSpecialties DoctorSpecialty[]
+
+  @@map("specialty")
+}
+
+model DoctorSpecialty {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  specialty   Specialty @relation(fields: [specialtyId], references: [id])
+  specialtyId Int       @map("specialty_id")
+  doctor      Doctor    @relation(fields: [doctorId], references: [id])
+  doctorId    Int       @map("doctor_id")
+
+  @@map("doctor_specialty")
+}
+
+model Doctor {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  room      Int
+
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id])
+
+  category   DoctorCategory @default(SECOND)
+  experience Int            @default(0)
+
+  doctorSpecialties DoctorSpecialty[]
+  schedules         Schedule[]
+  appointments      Appointment[]
+
+  @@map("doctor")
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  date      DateTime
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+
+  doctor   Doctor @relation(fields: [doctorId], references: [id])
+  doctorId Int    @map("doctor_id")
+
+  appointments Appointment[]
+
+  @@map("schedule")
+}
+
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  status AppointmentStatus @default(PENDING)
+
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  patientId  Int      @map("patient_id")
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  doctorId   Int      @map("doctor_id")
+  schedule   Schedule @relation(fields: [scheduleId], references: [id])
+  scheduleId Int      @map("schedule_id")
+
+  @@map("appointment")
+}
+
+model HomeCall {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fullName String @map("full_name")
+  phone    String
+  address  String
+  doctor   String
+  date     String
+  time     String
+
+  status AppointmentStatus @default(PENDING)
+
+  @@map("home_call")
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  name    String
+  email   String
+  subject String
+  message String
+
+  isRead Boolean @default(false)
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @map("user_id")
+
+  @@map("feedback")
+}
