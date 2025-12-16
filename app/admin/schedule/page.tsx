@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 "use client";
 
 import { useMemo, useState } from "react";
@@ -64,7 +65,6 @@ export default function AdminSchedulePage() {
 
     setSchedule((prev) => {
       const next = new Set(prev);
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
@@ -72,15 +72,31 @@ export default function AdminSchedulePage() {
     setSaved(false);
   }
 
-  function saveSchedule() {
+  async function saveSchedule() {
     if (!doctorId) return;
 
-    // TODO: POST /api/schedule
-    // body: doctorId + schedule
+    try {
+      const res = await fetch("/api/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          doctorId,
+          slots: Array.from(schedule),
+        }),
+      });
 
-    setSaved(true);
+      if (!res.ok) {
+        throw new Error("Ошибка сохранения расписания");
+      }
 
-    setTimeout(() => setSaved(false), 3000);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+      alert("Не удалось сохранить расписание");
+    }
   }
 
   /* =====================
@@ -100,7 +116,7 @@ export default function AdminSchedulePage() {
             value={doctorId}
             onChange={(e) => {
               setDoctorId(e.target.value ? Number(e.target.value) : "");
-              setSchedule(new Set()); // TODO: загрузка из БД
+              setSchedule(new Set());
               setSaved(false);
             }}
             className="w-full bg-white/10 px-4 py-3 rounded-lg"

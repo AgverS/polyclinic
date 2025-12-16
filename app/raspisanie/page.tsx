@@ -53,8 +53,9 @@ export default function SchedulePage() {
       try {
         setLoading(true);
         const res = await fetch(
-          `/api/schedule?search=${search}&specialty=${specialty}&day=${day}`
+          `/api/schedule/public?search=${search}&specialty=${specialty}&day=${day}`
         );
+
         const data: ScheduleDoctor[] = await res.json();
 
         if (!cancelled) {
