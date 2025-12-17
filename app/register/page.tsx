@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import axios from "axios";
+import { useAuth } from "@/lib/context";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { login } = useAuth();
 
-  const [login, setLogin] = useState("");
-  const [name, setName] = useState("");
+  const [email, setLogin] = useState("");
+  const [fullName, setName] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -18,34 +21,30 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
 
-    if (!login || !name || !password) {
-      setError("Пожалуйста, заполните все поля");
+    if (!email || !fullName || !password) {
+      setError("Заполните все поля");
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          login,
-          name,
-          password,
-        }),
+      const res = await axios.post("/api/auth/register", {
+        email,
+        fullName,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Ошибка регистрации");
+      login(res.data);
+      router.push("/online-appointment");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.message ?? "Ошибка авторизации. Попробуйте позже",
+        );
+      } else {
+        setError("Неизвестная ошибка");
       }
-
-      router.push("/login");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(err.message || "Ошибка сервера");
     } finally {
       setLoading(false);
     }
@@ -63,14 +62,14 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <input
-            value={login}
+            value={email}
             onChange={(e) => setLogin(e.target.value)}
             placeholder="Логин"
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400"
           />
 
           <input
-            value={name}
+            value={fullName}
             onChange={(e) => setName(e.target.value)}
             placeholder="Имя"
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400"

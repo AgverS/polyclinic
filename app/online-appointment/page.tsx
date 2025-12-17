@@ -1,17 +1,15 @@
-/* eslint-disable @next/next/no-html-link-for-pages */
 "use client";
 
-import { Doctor } from "@/lib/generated/prisma";
-import { IconCheck } from "@tabler/icons-react";
+import { FullDoctor } from "@/lib/types";
+import { IconArrowRight, IconCheck, IconUser } from "@tabler/icons-react";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 export default function OnlineAppointmentPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // TODO: заменить на реальные данные с backend
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<FullDoctor | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
@@ -89,8 +87,11 @@ function DoctorCard({
   doctor,
   selected,
   onSelect,
-}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-any) {
+}: {
+  doctor: FullDoctor;
+  selected: boolean;
+  onSelect: Dispatch<SetStateAction<FullDoctor | null>>;
+}) {
   return (
     <button
       onClick={() => onSelect(doctor)}
@@ -103,54 +104,39 @@ any) {
     >
       <div className="flex items-center gap-4 mb-3">
         <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
-          👨‍⚕️
+          <IconUser />
         </div>
         <div>
-          <div className="font-semibold">{doctor.name}</div>
-          <div className="text-sm text-gray-400">{doctor.specialty}</div>
+          <div className="font-semibold">{doctor.user.fullName}</div>
+          <div className="text-sm text-gray-400">
+            {doctor.doctorSpecialties.map((el) => el.specialty.name).join(", ")}
+          </div>
         </div>
       </div>
 
       <div className="text-sm text-gray-400 space-y-1">
         <p>Стаж: {doctor.experience} лет</p>
-        <p>Рейтинг: {doctor.rating}</p>
         <p>Кабинет: {doctor.room}</p>
       </div>
     </button>
   );
 }
 
-// const doctors = [
-//   {
-//     id: 1,
-//     name: "Иванова Мария Петровна",
-//     specialty: "Терапевт, высшая категория",
-//     experience: 15,
-//     rating: 4.8,
-//     room: 215,
-//   },
-//   {
-//     id: 2,
-//     name: "Петров Алексей Владимирович",
-//     specialty: "Хирург",
-//     experience: 12,
-//     rating: 4.7,
-//     room: 312,
-//   },
-// ];
-
 function StepDoctor({
   onNext,
   selectedDoctor,
   setSelectedDoctor,
-}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-any) {
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+}: {
+  onNext: (value: SetStateAction<1 | 2 | 3>) => void;
+  selectedDoctor: FullDoctor | null;
+  setSelectedDoctor: Dispatch<SetStateAction<FullDoctor | null>>;
+}) {
+  const [doctors, setDoctors] = useState<FullDoctor[]>([]);
 
   useEffect(() => {
     const fetch = async () => {
       const res = await axios.get("/api/doctors");
-      const data: Doctor[] = res.data;
+      const data: FullDoctor[] = res.data;
       setDoctors(data);
     };
     fetch();
@@ -177,10 +163,10 @@ any) {
 
         <button
           disabled={!selectedDoctor}
-          onClick={onNext}
-          className="mt-6 w-full bg-blue-600 py-3 rounded-lg disabled:opacity-50"
+          onClick={() => onNext(2)}
+          className="mt-6 w-full bg-blue-600 py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 font-bold"
         >
-          Продолжить →
+          Продолжить <IconArrowRight />
         </button>
       </aside>
     </section>
@@ -193,14 +179,19 @@ function StepDateTime({
   onNext,
   setDate,
   setTime,
-}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-any) {
+}: {
+  doctor: FullDoctor | null;
+  onBack: () => void;
+  onNext: () => void;
+  setDate: Dispatch<SetStateAction<string | null>>;
+  setTime: Dispatch<SetStateAction<string | null>>;
+}) {
   return (
     <section className="grid lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-6">
         <div className="bg-white/5 p-6 rounded-xl border border-white/10">
           <h2 className="font-semibold mb-2">Врач</h2>
-          <p>{doctor?.name}</p>
+          <p>{doctor?.user.fullName}</p>
         </div>
 
         {/* TODO: заменить на реальный календарь */}
@@ -245,8 +236,15 @@ any) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Success({ doctor, date, time }: any) {
+function Success({
+  doctor,
+  date,
+  time,
+}: {
+  doctor: FullDoctor | null;
+  date: string | null;
+  time: string | null;
+}) {
   return (
     <div className="text-center py-24 flex flex-col items-center">
       <div className="p-4 mb-6 bg-green-400 rounded-full text-white">
@@ -255,7 +253,7 @@ function Success({ doctor, date, time }: any) {
       <h2 className="text-3xl font-bold mb-4">Запись успешно оформлена</h2>
 
       <p className="text-gray-400 mb-8">
-        {doctor?.name}, {date} в {time}
+        {doctor?.user.fullName}, {date} в {time}
       </p>
 
       {/* TODO: генерация талона, печать */}
@@ -263,9 +261,9 @@ function Success({ doctor, date, time }: any) {
         <button className="border px-6 py-3 rounded-lg">
           Распечатать талон
         </button>
-        <a href="/" className="bg-blue-600 px-6 py-3 rounded-lg">
+        <Link href="/" className="bg-blue-600 px-6 py-3 rounded-lg">
           На главную
-        </a>
+        </Link>
       </div>
     </div>
   );

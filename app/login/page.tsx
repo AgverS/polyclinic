@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import axios from "axios";
+import { User } from "@/lib/generated/prisma";
+import { useAuth } from "@/lib/context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
 
-  const [login, setLogin] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -17,7 +21,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    if (!login || !password) {
+    if (!email || !password) {
       setError("Заполните все поля");
       return;
     }
@@ -25,27 +29,28 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login, password }),
+      const res = await axios.post("/api/auth/login", {
+        email,
+        password,
       });
 
-      const data = await res.json();
+      const data: User = res.data;
 
-      if (!res.ok) {
-        throw new Error(data.message || "Ошибка входа");
-      }
+      login(data);
 
-      // ⬇️ РОЛЬ РЕШАЕТ БЭК
       if (data.role === "PATIENT") {
         router.push("/online-appointment");
       } else {
-        router.push("/admin");
+        router.push("/admin/doctors");
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(err.message || "Ошибка сервера");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.message ?? "Ошибка авторизации. Попробуйте позже",
+        );
+      } else {
+        setError("Неизвестная ошибка");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,14 +63,14 @@ export default function LoginPage() {
           Вход в систему
         </h1>
         <p className="text-center text-gray-400 mb-8">
-          Городская поликлиника №26
+          Городская поликлиника 26
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <input
-            value={login}
-            onChange={(e) => setLogin(e.target.value)}
-            placeholder="Логин / номер полиса"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400"
           />
 

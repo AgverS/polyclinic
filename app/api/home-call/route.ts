@@ -16,15 +16,13 @@ export async function POST(req: NextRequest) {
 
     const { fullName, phone, address, doctor, date, time } = body;
 
-    // 1️⃣ Валидация
     if (!fullName || !phone || !address || !doctor || !date || !time) {
       return NextResponse.json(
         { message: "Не все поля заполнены" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // 2️⃣ Создание заявки
     const homeCall = await prisma.homeCall.create({
       data: {
         fullName,
@@ -36,14 +34,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 3️⃣ Ответ
     return NextResponse.json({ success: true, homeCall }, { status: 200 });
   } catch (error) {
     console.error("HOME_CALL_ERROR:", error);
 
     return NextResponse.json(
       { message: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

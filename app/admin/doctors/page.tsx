@@ -6,15 +6,9 @@ import axios from "axios";
 import Select from "@/components/ui/select";
 import Input from "@/components/ui/input";
 import { Doctor, Specialty, User } from "@/lib/generated/prisma";
+import { FullDoctor } from "@/lib/types";
 
-type FullDoctor = Doctor & {
-  doctorSpecialties: {
-    specialty: Specialty;
-  }[];
-  user: User;
-};
-
-type FormSchema = {
+export type FormSchema = {
   fullName: string;
   specialty: string;
   room: number;
@@ -39,6 +33,16 @@ export default function AdminDoctorsPage() {
   const [form, setForm] = useState<FormSchema>(emptyForm);
   const [editing, setEditing] = useState<Doctor | null>(null);
 
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+
+  useEffect(() => {
+    async function fetchSpecialties() {
+      const res = await axios.get("/api/specialty");
+      setSpecialties(res.data);
+    }
+    fetchSpecialties();
+  }, []);
+
   const fetchDoctors = async () => {
     const res = await axios.get("/api/doctors");
     setDoctors(res.data);
@@ -59,15 +63,26 @@ export default function AdminDoctorsPage() {
     setEditing(null);
   }
 
+  function isFormValid(form: FormSchema) {
+    return (
+      form.fullName.trim() !== "" &&
+      form.email.trim() !== "" &&
+      form.password.trim() !== "" &&
+      form.specialty.trim() !== "" &&
+      form.room > 0 &&
+      form.experience >= 0
+    );
+  }
+
   async function submitForm() {
-    // if (!isFilled(form)) {
-    // alert("Заполните все поля");
-    // return;
-    // }
+    if (!isFormValid(form)) {
+      alert("Заполните все поля");
+      return;
+    }
     if (!!editing) {
-      // setDoctors((prev) => [...prev, { id: Date.now(), ...form }]);
+      await axios.put("/api/doctors", { form, id: editing.id });
+      fetchDoctors();
     } else {
-      console.log(1);
       await axios.post("/api/doctors", form);
       fetchDoctors();
     }
@@ -75,8 +90,24 @@ export default function AdminDoctorsPage() {
     resetForm();
   }
 
-  function editDoctor(d: Doctor) {
+  async function editDoctor(d: Doctor) {
+    if (!!editing && editing.id == d.id) {
+      resetForm();
+      return;
+    }
+    const resUser = await axios.get(`/api/user/${d.userId}`);
+    const user: User = resUser.data;
+    const resSpecialty = await axios.get(`/api/specialty/${d.id}`);
+    const specialty: Specialty = resSpecialty.data;
     setEditing(d);
+    setForm({
+      email: user.email,
+      fullName: user.fullName,
+      specialty: specialty.name,
+      experience: d.experience,
+      password: "",
+      room: d.room,
+    });
   }
 
   function deleteDoctor(id: number) {
@@ -147,7 +178,7 @@ export default function AdminDoctorsPage() {
             <Select
               value={form.specialty}
               onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-              options={["Педиатр", "Терапевт", "Кардиолог", "Невролог"]}
+              options={specialties.map((s) => s.name)}
               title="Специальность"
               required
             />
@@ -250,7 +281,7 @@ export default function AdminDoctorsPage() {
                     onClick={() => editDoctor(d)}
                     className="text-blue-400 hover:underline"
                   >
-                    Редактировать
+                    {!!editing && editing === d ? "Отменить" : "Редактировать"}
                   </button>
                   <button
                     onClick={() => deleteDoctor(d.id)}

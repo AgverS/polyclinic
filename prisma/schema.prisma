@@ -31,10 +31,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  email    String  @unique
-  password String?
-  fullName String  @map("full_name")
-  role     Role    @default(PATIENT)
+  email    String @unique
+  password String
+  fullName String @map("full_name")
+  role     Role   @default(PATIENT)
 
   feedbacks Feedback[]
   patient   Patient?

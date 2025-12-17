@@ -1,46 +1,49 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { FullDoctor } from "@/lib/types";
+import axios from "axios";
+import { DoctorCategory } from "@/lib/generated/prisma";
 
 /*
   TODO (потом):
   Заменить mockDoctors на fetch("/api/doctors")
 */
 
-type Doctor = {
-  id: number;
-  fullName: string;
-  specialties: string[];
-  category: "Высшая" | "Первая" | "Вторая";
-  experience: number;
-  rating: number;
-  isPediatric: boolean;
-  availableToday: boolean;
-};
+// type Doctor = {
+//   id: number;
+//   fullName: string;
+//   specialties: string[];
+//   category: "Высшая" | "Первая" | "Вторая";
+//   experience: number;
+//   rating: number;
+//   isPediatric: boolean;
+//   availableToday: boolean;
+// };
 
-const mockDoctors: Doctor[] = [
-  {
-    id: 1,
-    fullName: "Иванов Иван Иванович",
-    specialties: ["Терапевт"],
-    category: "Высшая",
-    experience: 15,
-    rating: 4.9,
-    isPediatric: false,
-    availableToday: true,
-  },
-  {
-    id: 2,
-    fullName: "Петрова Анна Сергеевна",
-    specialties: ["Педиатр"],
-    category: "Первая",
-    experience: 11,
-    rating: 4.7,
-    isPediatric: true,
-    availableToday: false,
-  },
-];
+// const mockDoctors: Doctor[] = [
+//   {
+//     id: 1,
+//     fullName: "Иванов Иван Иванович",
+//     specialties: ["Терапевт"],
+//     category: "Высшая",
+//     experience: 15,
+//     rating: 4.9,
+//     isPediatric: false,
+//     availableToday: true,
+//   },
+//   {
+//     id: 2,
+//     fullName: "Петрова Анна Сергеевна",
+//     specialties: ["Педиатр"],
+//     category: "Первая",
+//     experience: 11,
+//     rating: 4.7,
+//     isPediatric: true,
+//     availableToday: false,
+//   },
+// ];
 
 export default function DoctorsPage() {
   const [search, setSearch] = useState("");
@@ -49,28 +52,48 @@ export default function DoctorsPage() {
   const [quickFilter, setQuickFilter] = useState<
     "all" | "available" | "pediatric" | "highest" | "experience"
   >("all");
+  const [doctors, setDoctors] = useState<FullDoctor[]>([]);
 
-  const filteredDoctors = useMemo(() => {
-    return mockDoctors.filter((d) => {
-      if (
-        search &&
-        !`${d.fullName} ${d.specialties.join(" ")}`
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      )
-        return false;
+  // const filteredDoctors = useMemo(() => {
+  //   return doctors.filter((d) => {
+  //     if (
+  //       search &&
+  //       !`${d.fullName} ${d.specialties.join(" ")}`
+  //         .toLowerCase()
+  //         .includes(search.toLowerCase())
+  //     )
+  //       return false;
 
-      if (specialty && !d.specialties.includes(specialty)) return false;
-      if (category && d.category !== category) return false;
+  //     if (specialty && !d.specialties.includes(specialty)) return false;
+  //     if (category && d.category !== category) return false;
 
-      if (quickFilter === "available" && !d.availableToday) return false;
-      if (quickFilter === "pediatric" && !d.isPediatric) return false;
-      if (quickFilter === "highest" && d.category !== "Высшая") return false;
-      if (quickFilter === "experience" && d.experience < 10) return false;
+  //     // if (quickFilter === "available" && !d.availableToday) return false;
+  //     if (quickFilter === "pediatric" && !d.isPediatric) return false;
+  //     if (quickFilter === "highest" && d.category !== "Высшая") return false;
+  //     if (quickFilter === "experience" && d.experience < 10) return false;
 
-      return true;
-    });
-  }, [search, specialty, category, quickFilter]);
+  //     return true;
+  //   });
+  // }, [search, specialty, category, quickFilter, doctors]);
+
+  const humanizeCategory = (category: DoctorCategory) => {
+    switch (category) {
+      case "FIRST":
+        return "Первая";
+      case "SECOND":
+        return "Вторая";
+      case "HIGHEST":
+        return "Высшая";
+    }
+  };
+
+  useEffect(() => {
+    const fetch = async () => {
+      const res = await axios.get("api/doctors");
+      setDoctors(res.data);
+    };
+    fetch();
+  }, []);
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
@@ -164,27 +187,30 @@ export default function DoctorsPage() {
 
       {/* DOCTORS GRID */}
       <section className="grid md:grid-cols-3 gap-6">
-        {filteredDoctors.length === 0 && (
+        {doctors.length === 0 && (
           <div className="col-span-full text-center text-gray-500">
             Врачи по вашему запросу не найдены
           </div>
         )}
 
-        {filteredDoctors.map((d) => (
+        {doctors.map((d) => (
           <div key={d.id} className="bg-white p-6 rounded-xl shadow space-y-3">
-            <h3 className="text-lg font-semibold">{d.fullName}</h3>
-            <p className="text-gray-500">{d.specialties.join(", ")}</p>
+            <h3 className="text-lg font-semibold">{d.user.fullName}</h3>
+            <p className="text-gray-500">
+              {d.doctorSpecialties.map((el) => el.specialty.name).join(", ")}
+            </p>
 
-            <div className="text-sm">Категория: {d.category}</div>
+            <div className="text-sm">
+              Категория: {humanizeCategory(d.category)}
+            </div>
             <div className="text-sm">Опыт: {d.experience} лет</div>
-            <div className="text-sm">Рейтинг: ⭐ {d.rating}</div>
 
             <div
               className={`text-sm font-medium ${
-                d.availableToday ? "text-green-600" : "text-gray-400"
+                true ? "text-green-600" : "text-gray-400"
               }`}
             >
-              {d.availableToday ? "Свободен сегодня" : "Нет свободных окон"}
+              {true ? "Свободен сегодня" : "Нет свободных окон"}
             </div>
 
             <Link

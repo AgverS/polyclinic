@@ -3,10 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-/* =========================
-   TYPES
-========================= */
-
 type ScheduleDoctor = {
   name: string;
   specialty: string;
@@ -33,10 +29,6 @@ type ScheduleTableProps = {
   loading: boolean;
 };
 
-/* =========================
-   PAGE
-========================= */
-
 export default function SchedulePage() {
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("");
@@ -53,7 +45,7 @@ export default function SchedulePage() {
       try {
         setLoading(true);
         const res = await fetch(
-          `/api/schedule/public?search=${search}&specialty=${specialty}&day=${day}`
+          `/api/schedule/public?search=${search}&specialty=${specialty}&day=${day}`,
         );
 
         const data: ScheduleDoctor[] = await res.json();
@@ -110,10 +102,6 @@ export default function SchedulePage() {
   );
 }
 
-/* =========================
-   HERO
-========================= */
-
 function ScheduleHero() {
   return (
     <section className="h-70 bg-linear-to-r from-indigo-900 to-blue-900 flex items-center justify-center">
@@ -126,10 +114,6 @@ function ScheduleHero() {
     </section>
   );
 }
-
-/* =========================
-   FILTERS
-========================= */
 
 function ScheduleFilters({
   search,
@@ -176,10 +160,6 @@ function ScheduleFilters({
     </div>
   );
 }
-
-/* =========================
-   TABLE
-========================= */
 
 function ScheduleTable({ doctors, loading }: ScheduleTableProps) {
   if (loading) {
