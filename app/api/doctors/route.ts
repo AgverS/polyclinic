@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DoctorCategory, Role } from "@/lib/generated/prisma";
+import { hashPassword } from "@/lib/utils";
 
 // GET — список врачей
 export async function GET() {
@@ -16,53 +16,43 @@ export async function GET() {
     },
   });
 
-  const result = doctors.map(
-    (d: {
-      id: any;
-      user: { fullName: any };
-      doctorSpecialties: { specialty: { name: any } }[];
-      room: any;
-      experience: any;
-    }) => ({
-      id: d.id,
-      fullName: d.user.fullName,
-      specialty: d.doctorSpecialties[0]?.specialty.name ?? "",
-      room: d.room,
-      experience: d.experience,
-    })
-  );
-
-  return NextResponse.json(result);
+  return NextResponse.json(doctors);
 }
 
 // POST — создание врача
 export async function POST(req: Request) {
-  const body = await req.json();
+  const { email, fullName, password, room, experience, specialty } =
+    await req.json();
+
+  const hashedPassword = await hashPassword(password);
 
   const user = await prisma.user.create({
     data: {
-      email: body.email, // обязательно!
-      password: body.password, // временно, потом хеш
-      fullName: body.fullName,
+      email: email,
+      password: hashedPassword,
+      fullName: fullName,
       role: Role.DOCTOR,
     },
   });
 
   const doctor = await prisma.doctor.create({
     data: {
-      room: body.room,
-      experience: body.experience,
+      room: room,
+      experience: experience,
       category: DoctorCategory.FIRST,
       userId: user.id,
     },
   });
 
-  // привязка специальности
-  if (body.specialtyId) {
+  if (specialty) {
     await prisma.doctorSpecialty.create({
       data: {
         doctorId: doctor.id,
-        specialtyId: body.specialtyId,
+        specialtyId: (
+          await prisma.specialty.findFirstOrThrow({
+            where: { name: specialty },
+          })
+        ).id,
       },
     });
   }

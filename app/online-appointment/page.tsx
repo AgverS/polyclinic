@@ -1,8 +1,10 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
 "use client";
 
+import { Doctor } from "@/lib/generated/prisma";
 import { IconCheck } from "@tabler/icons-react";
-import { useState } from "react";
+import axios from "axios";
+import { useEffect, useState } from "react";
 
 export default function OnlineAppointmentPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -118,24 +120,24 @@ any) {
   );
 }
 
-const doctors = [
-  {
-    id: 1,
-    name: "Иванова Мария Петровна",
-    specialty: "Терапевт, высшая категория",
-    experience: 15,
-    rating: 4.8,
-    room: 215,
-  },
-  {
-    id: 2,
-    name: "Петров Алексей Владимирович",
-    specialty: "Хирург",
-    experience: 12,
-    rating: 4.7,
-    room: 312,
-  },
-];
+// const doctors = [
+//   {
+//     id: 1,
+//     name: "Иванова Мария Петровна",
+//     specialty: "Терапевт, высшая категория",
+//     experience: 15,
+//     rating: 4.8,
+//     room: 215,
+//   },
+//   {
+//     id: 2,
+//     name: "Петров Алексей Владимирович",
+//     specialty: "Хирург",
+//     experience: 12,
+//     rating: 4.7,
+//     room: 312,
+//   },
+// ];
 
 function StepDoctor({
   onNext,
@@ -143,6 +145,17 @@ function StepDoctor({
   setSelectedDoctor,
 }: // eslint-disable-next-line @typescript-eslint/no-explicit-any
 any) {
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const res = await axios.get("/api/doctors");
+      const data: Doctor[] = res.data;
+      setDoctors(data);
+    };
+    fetch();
+  }, []);
+
   return (
     <section className="grid lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">

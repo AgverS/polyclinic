@@ -1,83 +1,82 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import Select from "@/components/ui/select";
+import Input from "@/components/ui/input";
+import { Doctor, Specialty, User } from "@/lib/generated/prisma";
 
-/* =====================
-   TYPES
-===================== */
+type FullDoctor = Doctor & {
+  doctorSpecialties: {
+    specialty: Specialty;
+  }[];
+  user: User;
+};
 
-type Doctor = {
-  id: number;
+type FormSchema = {
   fullName: string;
   specialty: string;
   room: number;
   experience: number;
+  email: string;
+  password: string;
 };
 
-const emptyDoctor: Omit<Doctor, "id"> = {
+const emptyForm: FormSchema = {
   fullName: "",
   specialty: "",
   room: 0,
   experience: 0,
+  email: "",
+  password: "",
 };
-
-/* =====================
-   PAGE
-===================== */
 
 export default function AdminDoctorsPage() {
   const router = useRouter();
 
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [form, setForm] = useState<Omit<Doctor, "id">>(emptyDoctor);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [doctors, setDoctors] = useState<FullDoctor[]>([]);
+  const [form, setForm] = useState<FormSchema>(emptyForm);
+  const [editing, setEditing] = useState<Doctor | null>(null);
+
+  const fetchDoctors = async () => {
+    const res = await axios.get("/api/doctors");
+    setDoctors(res.data);
+  };
 
   useEffect(() => {
-    // MOCK
-    setDoctors([
-      {
-        id: 1,
-        fullName: "Сычева Анна Романовна",
-        specialty: "Педиатр",
-        room: 7,
-        experience: 0,
-      },
-    ]);
+    const fetch = async () => {
+      const res = await axios.get("/api/doctors");
+      const data = res.data;
+      console.log(data);
+      setDoctors(data);
+    };
+    fetch();
   }, []);
 
-  /* =====================
-     ACTIONS
-  ===================== */
-
   function resetForm() {
-    setForm(emptyDoctor);
-    setEditingId(null);
+    setForm(emptyForm);
+    setEditing(null);
   }
 
-  function submitForm() {
-    if (!form.fullName || !form.specialty) return;
-
-    if (editingId === null) {
-      setDoctors((prev) => [...prev, { id: Date.now(), ...form }]);
+  async function submitForm() {
+    // if (!isFilled(form)) {
+    // alert("Заполните все поля");
+    // return;
+    // }
+    if (!!editing) {
+      // setDoctors((prev) => [...prev, { id: Date.now(), ...form }]);
     } else {
-      setDoctors((prev) =>
-        prev.map((d) => (d.id === editingId ? { id: editingId, ...form } : d))
-      );
+      console.log(1);
+      await axios.post("/api/doctors", form);
+      fetchDoctors();
     }
 
     resetForm();
   }
 
   function editDoctor(d: Doctor) {
-    setEditingId(d.id);
-    setForm({
-      fullName: d.fullName,
-      specialty: d.specialty,
-      room: d.room,
-      experience: d.experience,
-    });
+    setEditing(d);
   }
 
   function deleteDoctor(id: number) {
@@ -88,10 +87,6 @@ export default function AdminDoctorsPage() {
     router.push(`/admin/schedule?doctorId=${id}`);
   }
 
-  /* =====================
-     RENDER
-  ===================== */
-
   return (
     <div className="min-h-screen bg-slate-900 text-white p-10 space-y-10">
       <h1 className="text-3xl font-bold">Управление врачами</h1>
@@ -99,20 +94,48 @@ export default function AdminDoctorsPage() {
       {/* FORM */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-8 max-w-5xl">
         <h2 className="text-2xl font-semibold mb-6">
-          {editingId ? "Редактировать врача" : "Добавить врача"}
+          {editing ? "Редактировать врача" : "Добавить врача"}
         </h2>
 
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Email */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Email</label>
+            <Input
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full bg-white/10 rounded-lg px-4 py-3"
+              placeholder="example@gmail.com"
+              required
+            />
+          </div>
+
+          {/* Пароль */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              Пароль врача
+            </label>
+            <Input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full bg-white/10 rounded-lg px-4 py-3"
+              placeholder="Введите пароль"
+              required
+            />
+          </div>
+
           {/* ФИО */}
           <div>
             <label className="block text-sm text-gray-300 mb-1">
               ФИО врача
             </label>
-            <input
+            <Input
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               className="w-full bg-white/10 rounded-lg px-4 py-3"
               placeholder="Введите ФИО"
+              required
             />
           </div>
 
@@ -121,18 +144,13 @@ export default function AdminDoctorsPage() {
             <label className="block text-sm text-gray-300 mb-1">
               Специальность
             </label>
-            <select
-              title="123"
+            <Select
               value={form.specialty}
               onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-              className="w-full bg-white/10 rounded-lg px-4 py-3"
-            >
-              <option value="">Выберите</option>
-              <option value="Педиатр">Педиатр</option>
-              <option value="Терапевт">Терапевт</option>
-              <option value="Кардиолог">Кардиолог</option>
-              <option value="Невролог">Невролог</option>
-            </select>
+              options={["Педиатр", "Терапевт", "Кардиолог", "Невролог"]}
+              title="Специальность"
+              required
+            />
           </div>
 
           {/* Кабинет */}
@@ -140,15 +158,17 @@ export default function AdminDoctorsPage() {
             <label className="block text-sm text-gray-300 mb-1">
               Номер кабинета
             </label>
-            <input
+            <Input
               type="number"
               min={1}
               value={form.room}
-              onChange={(e) =>
-                setForm({ ...form, room: Number(e.target.value) })
-              }
+              onChange={(e) => {
+                if (e.currentTarget.value.length > 3) return;
+                setForm({ ...form, room: Number(e.target.value) });
+              }}
               className="w-full bg-white/10 rounded-lg px-4 py-3"
               placeholder="Напр. 205"
+              required
             />
           </div>
 
@@ -158,20 +178,23 @@ export default function AdminDoctorsPage() {
               Стаж (лет)
             </label>
             <div className="relative">
-              <input
+              <Input
                 type="number"
                 min={0}
+                max={99}
                 value={form.experience}
-                onChange={(e) =>
+                onChange={(e) => {
+                  if (e.currentTarget.value.length > 2) return;
                   setForm({
                     ...form,
                     experience: Number(e.target.value),
-                  })
-                }
+                  });
+                }}
                 className="w-full bg-white/10 rounded-lg px-4 py-3 pr-12"
                 placeholder="Напр. 5"
+                required
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <span className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400">
                 лет
               </span>
             </div>
@@ -183,10 +206,10 @@ export default function AdminDoctorsPage() {
             onClick={submitForm}
             className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-semibold"
           >
-            {editingId ? "Сохранить" : "Добавить"}
+            {editing ? "Сохранить" : "Добавить"}
           </button>
 
-          {editingId && (
+          {editing && (
             <button
               onClick={resetForm}
               className="bg-white/10 px-8 py-3 rounded-lg"
@@ -212,8 +235,8 @@ export default function AdminDoctorsPage() {
           <tbody>
             {doctors.map((d) => (
               <tr key={d.id} className="border-t border-white/10">
-                <td className="p-4">{d.fullName}</td>
-                <td className="p-4">{d.specialty}</td>
+                <td className="p-4">{d.user.fullName}</td>
+                <td className="p-4">{d.doctorSpecialties[0].specialty.name}</td>
                 <td className="p-4">{d.room}</td>
                 <td className="p-4">{d.experience} лет</td>
                 <td className="p-4 text-right space-x-4">

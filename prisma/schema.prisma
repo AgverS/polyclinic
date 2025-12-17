@@ -29,12 +29,12 @@ enum DoctorCategory {
 model User {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  email    String @unique
-  password String
-  fullName String @map("full_name")
-  role     Role   @default(PATIENT)
+  email    String  @unique
+  password String?
+  fullName String  @map("full_name")
+  role     Role    @default(PATIENT)
 
   feedbacks Feedback[]
   patient   Patient?
@@ -46,13 +46,13 @@ model User {
 model Patient {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   phone     String?
   birthDate DateTime? @map("birth_date")
 
   userId Int  @unique @map("user_id")
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   appointments Appointment[]
 
@@ -62,11 +62,9 @@ model Patient {
 model Specialty {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  name           String
-  educationStart DateTime @map("education_start")
-  educationEnd   DateTime @map("education_end")
+  name String
 
   doctorSpecialties DoctorSpecialty[]
 
@@ -76,11 +74,11 @@ model Specialty {
 model DoctorSpecialty {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  specialty   Specialty @relation(fields: [specialtyId], references: [id])
+  specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   specialtyId Int       @map("specialty_id")
-  doctor      Doctor    @relation(fields: [doctorId], references: [id])
+  doctor      Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   doctorId    Int       @map("doctor_id")
 
   @@map("doctor_specialty")
@@ -89,13 +87,13 @@ model DoctorSpecialty {
 model Doctor {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  room      Int
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   userId Int  @unique @map("user_id")
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   category   DoctorCategory @default(SECOND)
+  room       Int
   experience Int            @default(0)
 
   doctorSpecialties DoctorSpecialty[]
@@ -108,13 +106,13 @@ model Doctor {
 model Schedule {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   date      DateTime
   startTime DateTime @map("start_time")
   endTime   DateTime @map("end_time")
 
-  doctor   Doctor @relation(fields: [doctorId], references: [id])
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   doctorId Int    @map("doctor_id")
 
   appointments Appointment[]
@@ -125,15 +123,15 @@ model Schedule {
 model Appointment {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   status AppointmentStatus @default(PENDING)
 
-  patient    Patient  @relation(fields: [patientId], references: [id])
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   patientId  Int      @map("patient_id")
-  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  doctor     Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   doctorId   Int      @map("doctor_id")
-  schedule   Schedule @relation(fields: [scheduleId], references: [id])
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   scheduleId Int      @map("schedule_id")
 
   @@map("appointment")
@@ -142,7 +140,7 @@ model Appointment {
 model HomeCall {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   fullName String @map("full_name")
   phone    String
@@ -159,7 +157,7 @@ model HomeCall {
 model Feedback {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   name    String
   email   String
@@ -168,7 +166,7 @@ model Feedback {
 
   isRead Boolean @default(false)
 
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId Int  @map("user_id")
 
   @@map("feedback")
