@@ -115,11 +115,13 @@ export default function DoctorsPage() {
       </header>
 
       {/* STATS */}
-      <section className="grid md:grid-cols-4 gap-4">
-        <Stat value="58" label="Врачей" />
+      <section className="grid md:grid-cols-3 gap-4">
+        <Stat value={doctors.length.toString()} label="Врачей" />
         <Stat value="15" label="Направлений" />
-        <Stat value="285+" label="Лет опыта" />
-        <Stat value="4.8" label="Средний рейтинг" />
+        <Stat
+          value={doctors.reduce((acc, d) => acc + d.experience, 0).toString()}
+          label="Лет опыта"
+        />
       </section>
 
       {/* FILTERS */}

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DoctorCategory, Role } from "@/lib/generated/prisma";
-import { hashPassword } from "@/lib/utils";
 import { FormSchema } from "@/app/admin/doctors/page";
+import { hashPassword } from "../auth/register/route";
 
 export async function GET() {
   const doctors = await prisma.doctor.findMany({
