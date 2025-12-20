@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json(
       { message: "Email и пароль обязательны" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (user) {
     return NextResponse.json(
       { message: "Пользователь уже существует" },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password: _, ...safeUser } = registered;
 
   return NextResponse.json(safeUser);

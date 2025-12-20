@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 👉 трансформация под твой фронт
+    // трансформация под  фронт
     const result = doctors
       .map((doctor) => {
         const specialties = doctor.doctorSpecialties.map(
@@ -28,16 +28,16 @@ export async function GET(req: NextRequest) {
         );
 
         const schedules = doctor.schedules.map((s) => {
-          const weekday = s.date.toLocaleDateString("ru-RU", {
+          const weekday = s.startDateTime.toLocaleDateString("ru-RU", {
             weekday: "short",
           });
 
           return {
             day: weekday,
-            time: `${s.startTime.toLocaleTimeString("ru-RU", {
+            time: `${s.startDateTime.toLocaleTimeString("ru-RU", {
               hour: "2-digit",
               minute: "2-digit",
-            })} – ${s.endTime.toLocaleTimeString("ru-RU", {
+            })} – ${s.endDateTime.toLocaleTimeString("ru-RU", {
               hour: "2-digit",
               minute: "2-digit",
             })}`,
