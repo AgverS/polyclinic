@@ -34,15 +34,10 @@ export default function LoginPage() {
         password,
       });
 
-      const data: User = res.data;
+      const token: string = res.data;
 
-      login(data);
-
-      if (data.role === "PATIENT") {
-        router.push("/online-appointment");
-      } else {
-        router.push("/admin/doctors");
-      }
+      login(token);
+      router.push("/");
     } catch (err) {
       if (axios.isAxiosError(err)) {
         setError(

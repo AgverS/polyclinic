@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import * as bcrypt from "bcrypt";
+import { generateJwt } from "@/lib/jwt";
 
 export async function hashPassword(password: string) {
   return await bcrypt.hash(password, 10);
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json(
       { message: "Email и пароль обязательны" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (user) {
     return NextResponse.json(
       { message: "Пользователь уже существует" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -41,8 +42,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password: _, ...safeUser } = registered;
+  const token = generateJwt(registered);
 
-  return NextResponse.json(safeUser);
+  return NextResponse.json(token);
 }

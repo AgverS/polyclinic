@@ -35,7 +35,9 @@ export default function RegisterPage() {
         password,
       });
 
-      login(res.data);
+      const token: string = res.data;
+
+      login(token);
       router.push("/online-appointment");
     } catch (err) {
       if (axios.isAxiosError(err)) {

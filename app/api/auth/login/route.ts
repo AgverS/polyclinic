@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
+import { generateJwt } from "@/lib/jwt";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { password: _, ...safeUser } = user;
+  const token = generateJwt(user);
 
-  return NextResponse.json(safeUser);
+  return NextResponse.json(token);
 }

@@ -1,4 +1,7 @@
+import { NextRequest } from "next/server";
 import { Role } from "./generated/prisma";
+import { JwtUser } from "./jwt";
+import jwt from "jsonwebtoken";
 
 export type SessionUser = {
   id: number;
@@ -6,7 +9,28 @@ export type SessionUser = {
 };
 
 export function requireRole(user: SessionUser, roles: Role[]) {
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
   if (!roles.includes(user.role)) {
     throw new Error("Forbidden");
+  }
+}
+
+const JWT_SECRET = process.env.JWT_SECRET!;
+
+export function getUserFromRequest(req: NextRequest): JwtUser | null {
+  const auth = req.headers.get("authorization");
+
+  if (!auth?.startsWith("Bearer ")) return null;
+
+  const token = auth.slice(7);
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { user: JwtUser };
+    return decoded.user;
+  } catch {
+    return null;
   }
 }
