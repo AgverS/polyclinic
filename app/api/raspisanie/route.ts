@@ -5,9 +5,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
-    const search = searchParams.get("search") || "";
-    const specialty = searchParams.get("specialty") || "";
-    const day = searchParams.get("day") || "";
+    const search = searchParams.get("search") ?? "";
+    const specialty = searchParams.get("specialty") ?? "";
+    const day = searchParams.get("day") ?? "";
 
     const doctors = await prisma.doctor.findMany({
       include: {
@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // трансформация под  фронт
     const result = doctors
       .map((doctor) => {
         const specialties = doctor.doctorSpecialties.map(
@@ -45,16 +44,15 @@ export async function GET(req: NextRequest) {
         });
 
         return {
-          name: `Врач №${doctor.id}`, // временно
+          name: `Врач №${doctor.id}`,
           specialty: specialties[0] ?? "",
-          room: doctor.id * 10, // временно
+          room: doctor.room,
           days: schedules.map((s) => s.day),
           time: schedules.map((s) => s.time).join(", "),
           status: schedules.length ? "available" : "busy",
-          exp: 5 + doctor.id, // временно
+          exp: doctor.experience,
         };
       })
-      // 🔍 фильтры
       .filter((d) => {
         if (search && !d.name.toLowerCase().includes(search.toLowerCase()))
           return false;
