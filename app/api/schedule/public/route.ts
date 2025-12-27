@@ -60,7 +60,10 @@ export async function GET(req: Request) {
       },
       appointments: true,
     },
-    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    orderBy: [
+  { startDateTime: "asc" }
+]
+
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,7 +87,7 @@ export async function GET(req: Request) {
     const day = DAY_LABELS[s.date.getDay()];
     if (day) item.days.add(day);
 
-    item.times.push(s.startTime);
+    item.times.push(s.startDateTime);
     if (s.appointments.length) item.busyCount++;
   }
 

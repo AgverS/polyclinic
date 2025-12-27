@@ -43,12 +43,12 @@ export async function GET(req: Request) {
   const schedules = await prisma.schedule.findMany({
     where: {
       doctorId,
-      date: {
+      startDateTime: {
         gte: today,
         lte: maxDate,
       },
     },
-    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    orderBy: [{ startDateTime: "asc" }],
   });
 
   return NextResponse.json(schedules);
@@ -94,8 +94,8 @@ export async function POST(req: Request) {
           data: {
             doctorId: number;
             date: Date;
-            startTime: Date;
-            endTime: Date;
+            startDateTime: Date;
+            endDateTime: Date;
           };
         }) => unknown;
       };
@@ -129,14 +129,14 @@ export async function POST(req: Request) {
         const startTime = new Date(date);
         startTime.setHours(h, m, 0, 0);
 
-        const endTime = addMinutes(startTime, 30);
+        const endDateTime = addMinutes(startTime, 30);
 
         await tx.schedule.create({
           data: {
             doctorId,
             date,
-            startTime,
-            endTime,
+            startDateTime: startTime,
+            endDateTime,
           },
         });
       }
