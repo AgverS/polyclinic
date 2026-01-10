@@ -125,7 +125,13 @@ function InfoSections() {
         <p>г. Минск, ул. Колесникова 3</p>
 
         <div className="mt-4 h-48 bg-gray-200 flex items-center justify-center">
-          Карта
+          <iframe
+            title="map"
+            src="https://www.google.com/maps?q=Минск,+ул.+Колесникова+3&output=embed"
+            className="w-full h-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
         </div>
       </div>
     </section>

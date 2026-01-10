@@ -93,7 +93,13 @@ function ContactsInfo() {
 function ContactsMap() {
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl min-h-95 flex items-center justify-center text-gray-400">
-      Карта
+      <iframe
+        title="map"
+        src="https://www.google.com/maps?q=Минск,+ул.+Колесникова+3&output=embed"
+        className="w-full h-full border-0"
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
     </div>
   );
 }

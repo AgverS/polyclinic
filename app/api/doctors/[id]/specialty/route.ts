@@ -1,15 +1,18 @@
-import { requireRole } from "@/lib/auth";
+import { checkRoles } from "@/lib/auth";
 import { Role } from "@/lib/generated/prisma";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(req: NextRequest, { params }: any) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const session = (req as any).user;
-  requireRole(session, [Role.ADMIN]);
+  const res = checkRoles(req, [Role.ADMIN]);
+  if (res) {
+    return NextResponse.json({ message: res.message }, { status: res.status });
+  }
 
   const { name } = await req.json();
+
+  const { id } = await params;
 
   const specialty = await prisma.specialty.findFirst({ where: { name } });
 
@@ -17,7 +20,7 @@ export async function POST(req: NextRequest, { params }: any) {
 
   const record = await prisma.doctorSpecialty.create({
     data: {
-      doctorId: Number(params.id),
+      doctorId: Number(id),
       specialtyId: specialty.id,
     },
   });

@@ -4,13 +4,21 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-8">
         <div>
           <h4 className="font-bold mb-3">Контакты</h4>
-          <p>+375-25-751-77-10</p>
-          <p>info26@gmail.com</p>
+          <p>+375-44-512-22-79</p>
+          <p>annasychova23@yandex.ru</p>
         </div>
 
         <div>
           <h4 className="font-bold mb-3">Адрес</h4>
-          <p>г. Минск, ул. Колесникова 3</p>
+          <a
+            href="https://share.google/6WZ7DCPUnSFwxkc2t"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-inherit no-underline hover:text-inherit"
+          >
+            {" "}
+            г. Минск, ул. Колесникова 3
+          </a>
         </div>
 
         <div>
@@ -21,7 +29,7 @@ export default function Footer() {
       </div>
 
       <div className="text-center text-sm text-gray-500 mt-8">
-        © 2023 Городская поликлиника №26
+        © 2026 Городская поликлиника №26
       </div>
     </footer>
   );

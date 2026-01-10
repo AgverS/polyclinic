@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   const token = generateJwt(user);
+  console.log(token);
 
   return NextResponse.json(token);
 }

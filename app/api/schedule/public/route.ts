@@ -7,15 +7,25 @@ const DAY_LABELS: Record<number, string> = {
   3: "Ср",
   4: "Чт",
   5: "Пт",
+  6: "Сб",
+  7: "Вс",
+};
+
+type DoctorAgg = {
+  name: string;
+  specialties: string[];
+  room: number | null;
+  days: Set<string>;
+  times: Date[];
+  exp: number;
+  busyCount: number;
 };
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
-  const search = searchParams.get("search")?.toLowerCase() || "";
-  const specialty = searchParams.get("specialty") || "";
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dayFilter = searchParams.get("day") || "";
+  const search = searchParams.get("search")?.trim() || "";
+  const specialty = searchParams.get("specialty")?.trim() || "";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -25,26 +35,28 @@ export async function GET(req: Request) {
 
   const schedules = await prisma.schedule.findMany({
     where: {
-      date: {
+      startDateTime: {
         gte: today,
         lte: maxDate,
       },
       doctor: {
-        user: {
-          fullName: {
-            contains: search,
-            mode: "insensitive",
+        ...(search && {
+          user: {
+            fullName: {
+              contains: search,
+              mode: "insensitive",
+            },
           },
-        },
-        doctorSpecialties: specialty
-          ? {
-              some: {
-                specialty: {
-                  name: specialty,
-                },
+        }),
+        ...(specialty && {
+          doctorSpecialties: {
+            some: {
+              specialty: {
+                name: specialty,
               },
-            }
-          : undefined,
+            },
+          },
+        }),
       },
     },
     include: {
@@ -58,23 +70,22 @@ export async function GET(req: Request) {
           },
         },
       },
-      appointments: true,
+      appointments: {
+        select: { id: true },
+      },
     },
-    orderBy: [
-  { startDateTime: "asc" }
-]
-
+    orderBy: [{ startDateTime: "asc" }],
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const map = new Map<number, any>();
+  const map = new Map<number, DoctorAgg>();
 
   for (const s of schedules) {
     const d = s.doctor;
+
     if (!map.has(d.id)) {
       map.set(d.id, {
         name: d.user.fullName,
-        specialty: d.doctorSpecialties[0]?.specialty.name ?? "",
+        specialties: d.doctorSpecialties.map((ds) => ds.specialty.name),
         room: d.room,
         days: new Set<string>(),
         times: [],
@@ -83,8 +94,10 @@ export async function GET(req: Request) {
       });
     }
 
-    const item = map.get(d.id);
-    const day = DAY_LABELS[s.date.getDay()];
+    const item = map.get(d.id)!;
+
+    const jsDay = s.startDateTime.getDay(); // 0-6
+    const day = DAY_LABELS[jsDay === 0 ? 7 : jsDay];
     if (day) item.days.add(day);
 
     item.times.push(s.startDateTime);
@@ -92,23 +105,23 @@ export async function GET(req: Request) {
   }
 
   const result = Array.from(map.values()).map((d) => {
-    const times = d.times.sort((a: Date, b: Date) => a.getTime() - b.getTime());
+    const times = d.times.sort((a, b) => a.getTime() - b.getTime());
+
     const start = times[0];
     const end = times[times.length - 1];
 
+    const startHH = start.getHours().toString().padStart(2, "0");
+    const startMM = start.getMinutes().toString().padStart(2, "0");
+    const endHH = end.getHours().toString().padStart(2, "0");
+    const endMM = end.getMinutes().toString().padStart(2, "0");
+
     return {
       name: d.name,
-      specialty: d.specialty,
+      specialties: d.specialties,
       room: d.room,
       days: Array.from(d.days),
-      time: `${start.getHours().toString().padStart(2, "0")}:${start
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}–${end.getHours().toString().padStart(2, "0")}:${end
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`,
-      status: d.busyCount ? "busy" : "available",
+      time: `${startHH}:${startMM}-${endHH}:${endMM}`,
+      status: d.busyCount === d.times.length ? "busy" : "available",
       exp: d.exp,
     };
   });

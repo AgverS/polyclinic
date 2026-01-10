@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { requireRole } from "@/lib/auth";
 import { Role } from "@/lib/generated/prisma";
 import prisma from "@/lib/prisma";
@@ -5,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string } }
 ) {
   const { id } = await params;
   const userId = Number(id);
@@ -21,7 +22,7 @@ export async function GET(
   if (!user) {
     return NextResponse.json(
       { message: "Пользователь не найден" },
-      { status: 404 },
+      { status: 404 }
     );
   }
 
@@ -30,7 +31,9 @@ export async function GET(
   return NextResponse.json(safeUser);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PUT(req: NextRequest, { params }: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const session = (req as any).user;
   const id = Number(params.id);
 
@@ -48,7 +51,9 @@ export async function PUT(req: NextRequest, { params }: any) {
   return NextResponse.json(user);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function DELETE(req: NextRequest, { params }: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const session = (req as any).user;
   requireRole(session, [Role.ADMIN]);
 

@@ -19,15 +19,14 @@ function addMinutes(date: Date, minutes: number) {
 }
 
 /* =====================
-   GET — расписание для пользователя / админа
-   (пользователь видит максимум 14 дней)
+   GET — расписание врача (14 дней)
 ===================== */
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const doctorId = Number(searchParams.get("doctorId"));
 
-  if (!doctorId) {
+  if (!Number.isInteger(doctorId)) {
     return NextResponse.json(
       { error: "doctorId is required" },
       { status: 400 }
@@ -48,26 +47,23 @@ export async function GET(req: Request) {
         lte: maxDate,
       },
     },
-    orderBy: [{ startDateTime: "asc" }],
+    orderBy: { startDateTime: "asc" },
   });
 
   return NextResponse.json(schedules);
 }
 
 /* =====================
-   POST — сохранение расписания (АДМИН)
-   Перезаписывает неделю
+   POST — сохранить расписание (перезапись недели)
 ===================== */
 
 export async function POST(req: Request) {
-  const body = await req.json();
-
-  const { doctorId, slots } = body as {
+  const { doctorId, slots } = (await req.json()) as {
     doctorId: number;
-    slots: string[]; // ["mon_09:00", "tue_10:30"]
+    slots: string[];
   };
 
-  if (!doctorId || !Array.isArray(slots)) {
+  if (!Number.isInteger(doctorId) || !Array.isArray(slots)) {
     return NextResponse.json(
       { error: "doctorId and slots are required" },
       { status: 400 }
@@ -75,6 +71,8 @@ export async function POST(req: Request) {
   }
 
   const weekStart = getNextMonday();
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 5);
 
   const dayMap: Record<string, number> = {
     mon: 0,
@@ -84,64 +82,42 @@ export async function POST(req: Request) {
     fri: 4,
   };
 
-  await prisma.$transaction(
-    async (tx: {
-      schedule: {
-        deleteMany: (arg0: {
-          where: { doctorId: number; date: { gte: Date; lt: Date } };
-        }) => unknown;
-        create: (arg0: {
-          data: {
-            doctorId: number;
-            date: Date;
-            startDateTime: Date;
-            endDateTime: Date;
-          };
-        }) => unknown;
-      };
-    }) => {
-      // 1. удалить старое расписание этой недели
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 5);
+  await prisma.$transaction(async (tx) => {
+    // удалить старое расписание недели
+    await tx.schedule.deleteMany({
+      where: {
+        doctorId,
+        startDateTime: {
+          gte: weekStart,
+          lt: weekEnd,
+        },
+      },
+    });
 
-      await tx.schedule.deleteMany({
-        where: {
+    // создать новые слоты
+    for (const slot of slots) {
+      const [dayKey, time] = slot.split("_");
+      const dayOffset = dayMap[dayKey];
+      if (dayOffset === undefined) continue;
+
+      const [h, m] = time.split(":").map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) continue;
+
+      const startDateTime = new Date(weekStart);
+      startDateTime.setDate(weekStart.getDate() + dayOffset);
+      startDateTime.setHours(h, m, 0, 0);
+
+      const endDateTime = addMinutes(startDateTime, 30);
+
+      await tx.schedule.create({
+        data: {
           doctorId,
-          date: {
-            gte: weekStart,
-            lt: weekEnd,
-          },
+          startDateTime,
+          endDateTime,
         },
       });
-
-      // 2. создать новые слоты
-      for (const slot of slots) {
-        const [dayKey, time] = slot.split("_");
-        const dayOffset = dayMap[dayKey];
-
-        if (dayOffset === undefined) continue;
-
-        const [h, m] = time.split(":").map(Number);
-
-        const date = new Date(weekStart);
-        date.setDate(weekStart.getDate() + dayOffset);
-
-        const startTime = new Date(date);
-        startTime.setHours(h, m, 0, 0);
-
-        const endDateTime = addMinutes(startTime, 30);
-
-        await tx.schedule.create({
-          data: {
-            doctorId,
-            date,
-            startDateTime: startTime,
-            endDateTime,
-          },
-        });
-      }
     }
-  );
+  });
 
   return NextResponse.json({ success: true });
 }

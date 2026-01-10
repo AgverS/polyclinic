@@ -20,7 +20,7 @@ export function requireRole(user: SessionUser, roles: Role[]) {
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
-export function getUserFromRequest(req: NextRequest): JwtUser | null {
+export function getUserFromRequest(req: NextRequest): SessionUser | null {
   const auth = req.headers.get("authorization");
 
   if (!auth?.startsWith("Bearer ")) return null;
@@ -32,5 +32,16 @@ export function getUserFromRequest(req: NextRequest): JwtUser | null {
     return decoded.user;
   } catch {
     return null;
+  }
+}
+
+export function checkRoles(req: NextRequest, roles: Role[]) {
+  try {
+    const user = getUserFromRequest(req);
+    if (!user) throw new Error("Unauthorized");
+    console.log(user);
+    requireRole(user, roles);
+  } catch (err) {
+    return { message: (err as Error).message, status: 401 };
   }
 }
