@@ -42,7 +42,7 @@ export default function RegisterPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         setError(
-          err.response?.data?.message ?? "Ошибка авторизации. Попробуйте позже",
+          err.response?.data?.message ?? "Ошибка авторизации. Попробуйте позже"
         );
       } else {
         setError("Неизвестная ошибка");
@@ -66,7 +66,7 @@ export default function RegisterPage() {
           <input
             value={email}
             onChange={(e) => setLogin(e.target.value)}
-            placeholder="Логин"
+            placeholder="Email"
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400"
           />
 

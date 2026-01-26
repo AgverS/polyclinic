@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -10,6 +11,39 @@ export default function Home() {
       <Services />
       <InfoSections />
     </>
+  );
+}
+function PatientsCount() {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/patients/count")
+      .then((res) => res.json())
+      .then((data) => setCount(data.count))
+      .catch(() => setCount(0));
+  }, []);
+
+  return (
+    <div className="text-3xl font-bold text-blue-600">
+      {count !== null ? `${count}+` : "—"}
+    </div>
+  );
+}
+
+function DoctorsCount() {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/doctors/count")
+      .then((res) => res.json())
+      .then((data) => setCount(data.count))
+      .catch(() => setCount(0));
+  }, []);
+
+  return (
+    <div className="text-3xl font-bold text-blue-600">
+      {count !== null ? `${count}+` : "—"}
+    </div>
   );
 }
 
@@ -46,7 +80,7 @@ function Hero() {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
           <div className="bg-white p-6 rounded-xl shadow">
-            <div className="text-3xl font-bold text-blue-600">50+</div>
+            <DoctorsCount />
             <div>Врачей</div>
           </div>
           <div className="bg-white p-6 rounded-xl shadow">
@@ -54,7 +88,7 @@ function Hero() {
             <div>Лет работы</div>
           </div>
           <div className="bg-white p-6 rounded-xl shadow">
-            <div className="text-3xl font-bold text-blue-600">15k+</div>
+            <PatientsCount />
             <div>Пациентов</div>
           </div>
         </div>

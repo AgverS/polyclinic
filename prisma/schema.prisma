@@ -170,3 +170,15 @@ model Feedback {
 
   @@map("feedback")
 }
+
+model HomeCallSlot {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  date     String
+  time     String
+  isActive Boolean @default(true)
+
+  @@map("home_call_slot")
+}

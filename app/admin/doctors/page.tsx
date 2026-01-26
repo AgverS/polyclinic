@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Select from "@/components/ui/select";
 import Input from "@/components/ui/input";
-import { Doctor, Specialty, User } from "@/lib/generated/prisma";
+import { Specialty } from "@/lib/generated/prisma";
 import { FullDoctor } from "@/lib/types";
 
-export type FormSchema = {
+/* =====================
+   TYPES
+===================== */
+
+type FormSchema = {
   fullName: string;
   specialty: string;
   room: number;
@@ -26,96 +30,126 @@ const emptyForm: FormSchema = {
   password: "",
 };
 
+/* =====================
+   PAGE
+===================== */
+
 export default function AdminDoctorsPage() {
   const router = useRouter();
 
   const [doctors, setDoctors] = useState<FullDoctor[]>([]);
-  const [form, setForm] = useState<FormSchema>(emptyForm);
-  const [editing, setEditing] = useState<Doctor | null>(null);
-
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [form, setForm] = useState<FormSchema>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  /* =====================
+     LOAD DATA (FIXED)
+  ===================== */
 
   useEffect(() => {
-    async function fetchSpecialties() {
-      const res = await axios.get("/api/specialty");
-      setSpecialties(res.data);
-    }
-    fetchSpecialties();
-  }, []);
+    let mounted = true;
 
-  const fetchDoctors = async () => {
-    const res = await axios.get("/api/doctors");
-    setDoctors(res.data);
-  };
+    (async () => {
+      try {
+        const [doctorsRes, specialtiesRes] = await Promise.all([
+          axios.get("/api/doctors"),
+          axios.get("/api/specialty"),
+        ]);
 
-  useEffect(() => {
-    const fetch = async () => {
-      const res = await axios.get("/api/doctors");
-      const data = res.data;
-      console.log(data);
-      setDoctors(data);
+        if (!mounted) return;
+
+        setDoctors(doctorsRes.data);
+        setSpecialties(specialtiesRes.data);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
     };
-    fetch();
   }, []);
+
+  /* =====================
+     HELPERS
+  ===================== */
 
   function resetForm() {
     setForm(emptyForm);
-    setEditing(null);
+    setEditingId(null);
   }
 
-  function isFormValid(form: FormSchema) {
+  function isFormValid() {
     return (
-      form.fullName.trim() !== "" &&
-      form.email.trim() !== "" &&
-      form.password.trim() !== "" &&
-      form.specialty.trim() !== "" &&
+      form.fullName.trim() &&
+      form.email.trim() &&
+      form.specialty.trim() &&
       form.room > 0 &&
-      form.experience >= 0
+      form.experience >= 0 &&
+      (!editingId || form.password.trim())
     );
   }
 
+  /* =====================
+     ACTIONS
+  ===================== */
+
   async function submitForm() {
-    if (!isFormValid(form)) {
+    if (!isFormValid()) {
       alert("Заполните все поля");
       return;
     }
-    if (!!editing) {
-      await axios.put("/api/doctors", { form, id: editing.id });
-      fetchDoctors();
+
+    if (editingId) {
+      await axios.put("/api/doctors", { id: editingId, form });
     } else {
       await axios.post("/api/doctors", form);
-      fetchDoctors();
     }
 
+    const res = await axios.get("/api/doctors");
+    setDoctors(res.data);
     resetForm();
   }
 
-  async function editDoctor(d: Doctor) {
-    if (!!editing && editing.id == d.id) {
+  function editDoctor(d: FullDoctor) {
+    if (editingId === d.id) {
       resetForm();
       return;
     }
-    const resUser = await axios.get(`/api/user/${d.userId}`);
-    const user: User = resUser.data;
-    const resSpecialty = await axios.get(`/api/specialty/${d.id}`);
-    const specialty: Specialty = resSpecialty.data;
-    setEditing(d);
+
+    setEditingId(d.id);
     setForm({
-      email: user.email,
-      fullName: user.fullName,
-      specialty: specialty.name,
+      fullName: d.user.fullName,
+      email: d.user.email,
+      specialty: d.doctorSpecialties[0]?.specialty.name ?? "",
+      room: d.room,
       experience: d.experience,
       password: "",
-      room: d.room,
     });
   }
 
-  function deleteDoctor(id: number) {
-    setDoctors((prev) => prev.filter((d) => d.id !== id));
+  async function deleteDoctor(id: number) {
+    if (!confirm("Удалить врача?")) return;
+    await axios.delete("/api/doctors", { data: { id } });
+    const res = await axios.get("/api/doctors");
+    setDoctors(res.data);
   }
 
   function goToSchedule(id: number) {
     router.push(`/admin/schedule?doctorId=${id}`);
+  }
+
+  /* =====================
+     RENDER
+  ===================== */
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white p-10">
+        Загрузка...
+      </div>
+    );
   }
 
   return (
@@ -125,52 +159,30 @@ export default function AdminDoctorsPage() {
       {/* FORM */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-8 max-w-5xl">
         <h2 className="text-2xl font-semibold mb-6">
-          {editing ? "Редактировать врача" : "Добавить врача"}
+          {editingId ? "Редактировать врача" : "Добавить врача"}
         </h2>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {/* Email */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Email</label>
-            <Input
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full bg-white/10 rounded-lg px-4 py-3"
-              placeholder="example@gmail.com"
-              required
-            />
-          </div>
+          <InputBlock
+            label="Email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+          />
 
-          {/* Пароль */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">
-              Пароль врача
-            </label>
-            <Input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full bg-white/10 rounded-lg px-4 py-3"
-              placeholder="Введите пароль"
-              required
-            />
-          </div>
+          <InputBlock
+            label="Пароль врача"
+            type="password"
+            value={form.password}
+            onChange={(v) => setForm({ ...form, password: v })}
+            placeholder={editingId ? "Оставьте пустым" : "Введите пароль"}
+          />
 
-          {/* ФИО */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">
-              ФИО врача
-            </label>
-            <Input
-              value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              className="w-full bg-white/10 rounded-lg px-4 py-3"
-              placeholder="Введите ФИО"
-              required
-            />
-          </div>
+          <InputBlock
+            label="ФИО врача"
+            value={form.fullName}
+            onChange={(v) => setForm({ ...form, fullName: v })}
+          />
 
-          {/* Специальность */}
           <div>
             <label className="block text-sm text-gray-300 mb-1">
               Специальность
@@ -180,56 +192,22 @@ export default function AdminDoctorsPage() {
               onChange={(e) => setForm({ ...form, specialty: e.target.value })}
               options={specialties.map((s) => s.name)}
               title="Специальность"
-              required
             />
           </div>
 
-          {/* Кабинет */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">
-              Номер кабинета
-            </label>
-            <Input
-              type="number"
-              min={1}
-              value={form.room}
-              onChange={(e) => {
-                if (e.currentTarget.value.length > 3) return;
-                setForm({ ...form, room: Number(e.target.value) });
-              }}
-              className="w-full bg-white/10 rounded-lg px-4 py-3"
-              placeholder="Напр. 205"
-              required
-            />
-          </div>
+          <InputBlock
+            label="Кабинет"
+            type="number"
+            value={form.room}
+            onChange={(v) => setForm({ ...form, room: Number(v) })}
+          />
 
-          {/* Стаж */}
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">
-              Стаж (лет)
-            </label>
-            <div className="relative">
-              <Input
-                type="number"
-                min={0}
-                max={99}
-                value={form.experience}
-                onChange={(e) => {
-                  if (e.currentTarget.value.length > 2) return;
-                  setForm({
-                    ...form,
-                    experience: Number(e.target.value),
-                  });
-                }}
-                className="w-full bg-white/10 rounded-lg px-4 py-3 pr-12"
-                placeholder="Напр. 5"
-                required
-              />
-              <span className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400">
-                лет
-              </span>
-            </div>
-          </div>
+          <InputBlock
+            label="Стаж (лет)"
+            type="number"
+            value={form.experience}
+            onChange={(v) => setForm({ ...form, experience: Number(v) })}
+          />
         </div>
 
         <div className="mt-6 flex gap-4">
@@ -237,10 +215,10 @@ export default function AdminDoctorsPage() {
             onClick={submitForm}
             className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-semibold"
           >
-            {editing ? "Сохранить" : "Добавить"}
+            {editingId ? "Сохранить" : "Добавить"}
           </button>
 
-          {editing && (
+          {editingId && (
             <button
               onClick={resetForm}
               className="bg-white/10 px-8 py-3 rounded-lg"
@@ -267,7 +245,9 @@ export default function AdminDoctorsPage() {
             {doctors.map((d) => (
               <tr key={d.id} className="border-t border-white/10">
                 <td className="p-4">{d.user.fullName}</td>
-                <td className="p-4">{d.doctorSpecialties[0].specialty.name}</td>
+                <td className="p-4">
+                  {d.doctorSpecialties[0]?.specialty.name}
+                </td>
                 <td className="p-4">{d.room}</td>
                 <td className="p-4">{d.experience} лет</td>
                 <td className="p-4 text-right space-x-4">
@@ -281,7 +261,7 @@ export default function AdminDoctorsPage() {
                     onClick={() => editDoctor(d)}
                     className="text-blue-400 hover:underline"
                   >
-                    {!!editing && editing === d ? "Отменить" : "Редактировать"}
+                    {editingId === d.id ? "Отменить" : "Редактировать"}
                   </button>
                   <button
                     onClick={() => deleteDoctor(d.id)}
@@ -295,6 +275,37 @@ export default function AdminDoctorsPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* =====================
+   INPUT BLOCK
+===================== */
+
+function InputBlock({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm text-gray-300 mb-1">{label}</label>
+      <Input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white/10 rounded-lg px-4 py-3"
+      />
     </div>
   );
 }

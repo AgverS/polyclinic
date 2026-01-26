@@ -6,6 +6,20 @@ import axios from "axios";
 import Link from "next/link";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
+/* =====================
+   TYPES
+===================== */
+
+type ScheduleSlot = {
+  id: number;
+  startDateTime: string;
+  endDateTime: string;
+};
+
+/* =====================
+   PAGE
+===================== */
+
 export default function OnlineAppointmentPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -31,11 +45,11 @@ export default function OnlineAppointmentPage() {
           />
         )}
 
-        {step === 2 && (
+        {step === 2 && selectedDoctor && (
           <StepDateTime
             doctor={selectedDoctor}
             onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
+            onSuccess={() => setStep(3)}
             setDate={setSelectedDate}
             setTime={setSelectedTime}
           />
@@ -53,8 +67,12 @@ export default function OnlineAppointmentPage() {
   );
 }
 
+/* =====================
+   STEPS
+===================== */
+
 function Steps({ step }: { step: number }) {
-  const steps = ["Выбор врача", "Дата и время", "Подтверждение"];
+  const steps = ["Врач", "Дата и время", "Готово"];
 
   return (
     <div className="flex justify-center gap-8 mb-12">
@@ -83,6 +101,10 @@ function Steps({ step }: { step: number }) {
   );
 }
 
+/* =====================
+   STEP 1 - DOCTOR
+===================== */
+
 function DoctorCard({
   doctor,
   selected,
@@ -95,12 +117,11 @@ function DoctorCard({
   return (
     <button
       onClick={() => onSelect(doctor)}
-      className={`text-left p-5 rounded-xl border transition
-        ${
-          selected
-            ? "border-blue-500 bg-blue-500/10"
-            : "border-white/10 hover:border-white/30"
-        }`}
+      className={`text-left p-5 rounded-xl border transition ${
+        selected
+          ? "border-blue-500 bg-blue-500/10"
+          : "border-white/10 hover:border-white/30"
+      }`}
     >
       <div className="flex items-center gap-4 mb-3">
         <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
@@ -109,12 +130,12 @@ function DoctorCard({
         <div>
           <div className="font-semibold">{doctor.user.fullName}</div>
           <div className="text-sm text-gray-400">
-            {doctor.doctorSpecialties.map((el) => el.specialty.name).join(", ")}
+            {doctor.doctorSpecialties.map((s) => s.specialty.name).join(", ")}
           </div>
         </div>
       </div>
 
-      <div className="text-sm text-gray-400 space-y-1">
+      <div className="text-sm text-gray-400">
         <p>Стаж: {doctor.experience} лет</p>
         <p>Кабинет: {doctor.room}</p>
       </div>
@@ -127,19 +148,14 @@ function StepDoctor({
   selectedDoctor,
   setSelectedDoctor,
 }: {
-  onNext: (value: SetStateAction<1 | 2 | 3>) => void;
+  onNext: () => void;
   selectedDoctor: FullDoctor | null;
   setSelectedDoctor: Dispatch<SetStateAction<FullDoctor | null>>;
 }) {
   const [doctors, setDoctors] = useState<FullDoctor[]>([]);
 
   useEffect(() => {
-    const fetch = async () => {
-      const res = await axios.get("/api/doctors");
-      const data: FullDoctor[] = res.data;
-      setDoctors(data);
-    };
-    fetch();
+    axios.get("/api/doctors").then((res) => setDoctors(res.data));
   }, []);
 
   return (
@@ -156,71 +172,114 @@ function StepDoctor({
       </div>
 
       <aside className="bg-white/5 p-6 rounded-xl border border-white/10">
-        <h3 className="font-semibold mb-4">Информация</h3>
-        <p className="text-gray-400 text-sm mb-2">
-          Доступна запись на ближайшие 14 дней
-        </p>
-
         <button
           disabled={!selectedDoctor}
-          onClick={() => onNext(2)}
-          className="mt-6 w-full bg-blue-600 py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 font-bold"
+          onClick={onNext}
+          className="w-full bg-blue-600 py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 font-bold"
         >
-          Продолжить <IconArrowRight />
+          Далее <IconArrowRight />
         </button>
       </aside>
     </section>
   );
 }
 
+/* =====================
+   STEP 2 - DATE & TIME
+===================== */
+
 function StepDateTime({
   doctor,
   onBack,
-  onNext,
+  onSuccess,
   setDate,
   setTime,
 }: {
-  doctor: FullDoctor | null;
+  doctor: FullDoctor;
   onBack: () => void;
-  onNext: () => void;
+  onSuccess: () => void;
   setDate: Dispatch<SetStateAction<string | null>>;
   setTime: Dispatch<SetStateAction<string | null>>;
 }) {
+  const [slots, setSlots] = useState<ScheduleSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(`/api/schedule?doctorId=${doctor.id}`)
+      .then((res) => setSlots(res.data));
+  }, [doctor.id]);
+
+  const grouped = slots.reduce<Record<string, ScheduleSlot[]>>((acc, slot) => {
+    const date = slot.startDateTime.slice(0, 10);
+    acc[date] ??= [];
+    acc[date].push(slot);
+    return acc;
+  }, {});
+
+  const submit = async () => {
+    if (!selectedSlot) return;
+
+    const date = selectedSlot.startDateTime.slice(0, 10);
+    const time = selectedSlot.startDateTime.slice(11, 16);
+
+    setLoading(true);
+    try {
+      await axios.post("/api/appointment", {
+        scheduleId: selectedSlot.id,
+      });
+
+      setDate(date);
+      setTime(time);
+      onSuccess();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? "Ошибка записи. Слот недоступен");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="grid lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-6">
-        <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-          <h2 className="font-semibold mb-2">Врач</h2>
-          <p>{doctor?.user.fullName}</p>
-        </div>
-
-        {/* TODO: заменить на реальный календарь */}
-        <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-          <h2 className="font-semibold mb-4">Дата</h2>
-          <button
-            onClick={() => setDate("2025-01-17")}
-            className="px-4 py-2 bg-blue-600 rounded"
+        {Object.entries(grouped).map(([date, daySlots]) => (
+          <div
+            key={date}
+            className="bg-white/5 p-6 rounded-xl border border-white/10"
           >
-            17 января
-          </button>
-        </div>
+            <h3 className="font-semibold mb-3">{date}</h3>
 
-        {/* TODO: реальные слоты времени */}
-        <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-          <h2 className="font-semibold mb-4">Время</h2>
-          <button
-            onClick={() => setTime("14:30")}
-            className="px-4 py-2 bg-blue-600 rounded"
-          >
-            14:30
-          </button>
-        </div>
+            <div className="flex flex-wrap gap-2">
+              {daySlots.map((slot) => {
+                const time = slot.startDateTime.slice(11, 16);
+                const selected = selectedSlot?.id === slot.id;
+
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => setSelectedSlot(slot)}
+                    className={`px-4 py-2 rounded border ${
+                      selected
+                        ? "bg-blue-600 border-blue-600"
+                        : "border-white/20 hover:border-white/40"
+                    }`}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       <aside className="bg-white/5 p-6 rounded-xl border border-white/10">
         <button
-          onClick={onNext}
-          className="w-full bg-green-600 py-3 rounded-lg mb-3"
+          disabled={!selectedSlot || loading}
+          onClick={submit}
+          className="w-full bg-green-600 py-3 rounded-lg mb-3 disabled:opacity-50"
         >
           Подтвердить
         </button>
@@ -229,12 +288,16 @@ function StepDateTime({
           onClick={onBack}
           className="w-full border border-white/20 py-3 rounded-lg"
         >
-          ← Назад
+          Назад
         </button>
       </aside>
     </section>
   );
 }
+
+/* =====================
+   STEP 3 - SUCCESS
+===================== */
 
 function Success({
   doctor,
@@ -247,24 +310,18 @@ function Success({
 }) {
   return (
     <div className="text-center py-24 flex flex-col items-center">
-      <div className="p-4 mb-6 bg-green-400 rounded-full text-white">
-        <IconCheck size={96} stroke={2} />
+      <div className="p-4 mb-6 bg-green-600 rounded-full">
+        <IconCheck size={64} />
       </div>
-      <h2 className="text-3xl font-bold mb-4">Запись успешно оформлена</h2>
+      <h2 className="text-3xl font-bold mb-4">Запись создана</h2>
 
       <p className="text-gray-400 mb-8">
         {doctor?.user.fullName}, {date} в {time}
       </p>
 
-      {/* TODO: генерация талона, печать */}
-      <div className="flex justify-center gap-4">
-        <button className="border px-6 py-3 rounded-lg">
-          Распечатать талон
-        </button>
-        <Link href="/" className="bg-blue-600 px-6 py-3 rounded-lg">
-          На главную
-        </Link>
-      </div>
+      <Link href="/" className="bg-blue-600 px-6 py-3 rounded-lg">
+        На главную
+      </Link>
     </div>
   );
 }

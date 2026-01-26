@@ -1,16 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /* =====================
-   MOCK DATA (потом БД)
+   TYPES
 ===================== */
 
-const doctors = [
-  { id: 1, fullName: "Иванов Иван Иванович" },
-  { id: 2, fullName: "Петрова Анна Сергеевна" },
-];
+type Doctor = {
+  id: number;
+  user: {
+    fullName: string;
+  };
+};
+
+type SlotKey = `${string}_${string}`;
+
+/* =====================
+   CONSTANTS
+===================== */
 
 const days = [
   { key: "mon", label: "Пн" },
@@ -19,8 +27,6 @@ const days = [
   { key: "thu", label: "Чт" },
   { key: "fri", label: "Пт" },
 ];
-
-type SlotKey = `${string}_${string}`;
 
 /* =====================
    HELPERS
@@ -48,11 +54,28 @@ function generateTimes() {
 ===================== */
 
 export default function AdminSchedulePage() {
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [doctorId, setDoctorId] = useState<number | "">("");
   const [schedule, setSchedule] = useState<Set<SlotKey>>(new Set());
   const [saved, setSaved] = useState(false);
 
   const times = useMemo(() => generateTimes(), []);
+
+  /* =====================
+     LOAD DOCTORS
+  ===================== */
+
+  useEffect(() => {
+    fetch("/api/doctors")
+      .then((res) => {
+        if (!res.ok) throw new Error("Ошибка загрузки врачей");
+        return res.json();
+      })
+      .then((data) => setDoctors(data))
+      .finally(() => setLoading(false));
+  }, []);
 
   /* =====================
      ACTIONS
@@ -75,28 +98,22 @@ export default function AdminSchedulePage() {
   async function saveSchedule() {
     if (!doctorId) return;
 
-    try {
-      const res = await fetch("/api/schedule", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          doctorId,
-          slots: Array.from(schedule),
-        }),
-      });
+    const res = await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        doctorId,
+        slots: Array.from(schedule),
+      }),
+    });
 
-      if (!res.ok) {
-        throw new Error("Ошибка сохранения расписания");
-      }
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      console.error(err);
+    if (!res.ok) {
       alert("Не удалось сохранить расписание");
+      return;
     }
+
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   }
 
   /* =====================
@@ -107,13 +124,13 @@ export default function AdminSchedulePage() {
     <div className="min-h-screen bg-slate-900 text-white p-10 space-y-8">
       <h1 className="text-3xl font-bold">Расписание врачей</h1>
 
-      {/* TOP CONTROLS */}
       <div className="flex flex-wrap gap-6 items-end max-w-5xl">
         <div className="w-72">
           <label className="block text-sm text-gray-300 mb-2">Врач</label>
           <select
-            title="123"
+            title="Doctors"
             value={doctorId}
+            disabled={loading}
             onChange={(e) => {
               setDoctorId(e.target.value ? Number(e.target.value) : "");
               setSchedule(new Set());
@@ -121,10 +138,13 @@ export default function AdminSchedulePage() {
             }}
             className="w-full bg-white/10 px-4 py-3 rounded-lg"
           >
-            <option value="">Выберите врача</option>
+            <option value="">
+              {loading ? "Загрузка..." : "Выберите врача"}
+            </option>
+
             {doctors.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.fullName}
+                {d.user.fullName}
               </option>
             ))}
           </select>
@@ -133,13 +153,11 @@ export default function AdminSchedulePage() {
         <button
           onClick={saveSchedule}
           disabled={!doctorId}
-          className={`px-8 py-3 rounded-lg font-semibold transition
-            ${
-              doctorId
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-gray-600 cursor-not-allowed"
-            }
-          `}
+          className={`px-8 py-3 rounded-lg font-semibold transition ${
+            doctorId
+              ? "bg-blue-600 hover:bg-blue-700"
+              : "bg-gray-600 cursor-not-allowed"
+          }`}
         >
           Сохранить расписание
         </button>
@@ -151,7 +169,6 @@ export default function AdminSchedulePage() {
         )}
       </div>
 
-      {/* SCHEDULE GRID */}
       {doctorId && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 overflow-x-auto">
           <table className="border-collapse">
@@ -177,13 +194,11 @@ export default function AdminSchedulePage() {
                       <td key={t}>
                         <button
                           onClick={() => toggle(d.key, t)}
-                          className={`w-6 h-6 rounded transition
-                            ${
-                              active
-                                ? "bg-blue-600"
-                                : "bg-white/10 hover:bg-white/20"
-                            }
-                          `}
+                          className={`w-6 h-6 rounded transition ${
+                            active
+                              ? "bg-blue-600"
+                              : "bg-white/10 hover:bg-white/20"
+                          }`}
                         />
                       </td>
                     );

@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 
 export default function InformationPage() {
@@ -9,17 +8,17 @@ export default function InformationPage() {
       <section className="max-w-6xl mx-auto px-6 py-16 space-y-16">
         <p className="text-center text-lg text-gray-300 leading-relaxed">
           Городская поликлиника №26 — современное медицинское учреждение,
-          предоставляющее широкий спектр амбулаторных услуг.
-          Мы обеспечиваем качественную, доступную и своевременную помощь.
+          предоставляющее широкий спектр амбулаторных услуг. Мы обеспечиваем
+          качественную, доступную и своевременную помощь.
         </p>
 
         {/* Миссия */}
         <div className="bg-white/5 border border-white/10 rounded-xl p-8">
           <h2 className="text-2xl font-bold mb-4">Наша миссия</h2>
           <p className="text-gray-300 leading-relaxed">
-            Забота о здоровье населения через профессионализм,
-            уважение и инновации. Мы объединяем опыт врачей,
-            современные технологии и индивидуальный подход.
+            Забота о здоровье населения через профессионализм, уважение и
+            инновации. Мы объединяем опыт врачей, современные технологии и
+            индивидуальный подход.
           </p>
         </div>
 
@@ -49,8 +48,8 @@ function AboutHero() {
           О нашей поликлинике
         </h1>
         <p className="text-gray-200 max-w-3xl">
-          Современное медицинское учреждение,
-          предоставляющее амбулаторные услуги жителям Минска с 1985 года
+          Современное медицинское учреждение, предоставляющее амбулаторные
+          услуги жителям Минска с 1985 года
         </p>
       </div>
     </section>
@@ -67,9 +66,7 @@ const stats = [
 function Stats() {
   return (
     <section>
-      <h2 className="text-2xl font-bold mb-8 text-center">
-        Мы в цифрах
-      </h2>
+      <h2 className="text-2xl font-bold mb-8 text-center">Мы в цифрах</h2>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {stats.map((s) => (
@@ -77,19 +74,14 @@ function Stats() {
             key={s.label}
             className="bg-white/5 border border-white/10 rounded-xl p-6 text-center"
           >
-            <div className="text-3xl font-bold text-blue-400">
-              {s.value}
-            </div>
-            <div className="text-gray-300 mt-2">
-              {s.label}
-            </div>
+            <div className="text-3xl font-bold text-blue-400">{s.value}</div>
+            <div className="text-gray-300 mt-2">{s.label}</div>
           </div>
         ))}
       </div>
     </section>
   );
 }
-
 
 const directions = [
   {
@@ -151,43 +143,43 @@ function ContactInfo() {
         <p>✉️ info26@gmail.com</p>
 
         <p className="text-sm text-gray-300">
-          Пн–Пт: 8:00–20:00<br />
-          Сб: 9:00–15:00<br />
+          Пн–Пт: 8:00–20:00
+          <br />
+          Сб: 9:00–15:00
+          <br />
           Вс: выходной
         </p>
       </div>
 
       {/* TODO: Leaflet / Yandex / Google map через dynamic import */}
       <div className="bg-gray-700 rounded-xl flex items-center justify-center">
-        Карта
+        <iframe
+          title="map"
+          src="https://www.google.com/maps?q=Минск,+ул.+Колесникова+3&output=embed"
+          className="w-full h-full border-0"
+          loading="eager"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
       </div>
     </section>
   );
 }
-
 
 function History() {
   return (
     <section>
-      <h2 className="text-2xl font-bold mb-6 text-center">
-        Наша история
-      </h2>
+      <h2 className="text-2xl font-bold mb-6 text-center">Наша история</h2>
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-8 space-y-4 text-gray-300">
         <p>
-          Поликлиника была основана в 1985 году и прошла путь
-          от небольшого медпункта до многопрофильного центра.
+          Поликлиника была основана в 1985 году и прошла путь от небольшого
+          медпункта до многопрофильного центра.
         </p>
         <p>
-          За годы работы внедрены электронная запись,
-          современные диагностические комплексы
-          и расширен спектр услуг.
+          За годы работы внедрены электронная запись, современные
+          диагностические комплексы и расширен спектр услуг.
         </p>
       </div>
     </section>
   );
 }
-
-
-
-
