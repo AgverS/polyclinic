@@ -42,6 +42,7 @@ export default function Header() {
           <Link href="/doing">Деятельность</Link>
           <Link href="/platuslugi">Платные услуги</Link>
           <Link href="/contacts">Контакты</Link>
+          <Link href="/pharmacy">Аптека</Link>
         </nav>
 
         <div className="space-x-2 flex items-center">
@@ -78,6 +79,7 @@ export default function Header() {
             <Link href="/doing">Деятельность</Link>
             <Link href="/platuslugi">Платные услуги</Link>
             <Link href="/contacts">Контакты</Link>
+            <Link href="/pharmacy">Аптека</Link>
             <Link
               href="/login"
               className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-center"

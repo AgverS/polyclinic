@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 
 import Image from "next/image";
@@ -13,6 +14,7 @@ export default function Home() {
     </>
   );
 }
+
 function PatientsCount() {
   const [count, setCount] = useState<number | null>(null);
 
@@ -102,6 +104,13 @@ function Hero() {
             Записаться на прием
           </Link>
 
+          <Link
+            href="/pharmacy"
+            className="bg-green-600 text-white px-6 py-3 rounded-lg text-center hover:bg-green-700"
+          >
+            Перейти в аптеку
+          </Link>
+
           <a
             href="#services"
             className="border border-blue-600 text-blue-600 px-6 py-3 rounded-lg text-center hover:bg-blue-50"
@@ -118,6 +127,7 @@ const services = [
   { title: "Заказ талона онлайн", href: "/online-appointment" },
   { title: "Вызов врача на дом", href: "/home-call" },
   { title: "Список врачей", href: "/doctors" },
+  { title: "Аптека", href: "/pharmacy" }, // ✅ добавили аптеку
 ];
 
 function Services() {
