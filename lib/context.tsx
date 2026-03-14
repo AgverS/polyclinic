@@ -1,7 +1,7 @@
 "use client";
 
 import { User } from "@/lib/generated/prisma";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useEffect, useContext, useState } from "react";
 import { decodeUserFromToken } from "./jwt";
 
 type AuthContextType = {
