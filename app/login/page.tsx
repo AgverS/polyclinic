@@ -57,55 +57,66 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-900 flex items-center justify-center px-6">
-      <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-xl p-8">
-        <h1 className="text-3xl font-bold text-center mb-2 text-white">
-          Вход в систему
-        </h1>
-        <p className="text-center text-gray-400 mb-8">
-          Городская поликлиника 26
-        </p>
+    <main className="clinic-shell flex items-center justify-center px-6 py-16">
+      <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="clinic-hero rounded-[2rem] p-8 text-white sm:p-10">
+          <div className="clinic-kicker">Авторизация пациента</div>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight">
+            Вход в личный кабинет без перегруженной формы
+          </h1>
+          <p className="mt-5 text-base leading-7 text-slate-300">
+            После входа будут доступны талоны, история приемов, вызовы на дом и
+            заказы из аптеки.
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400"
-          />
+        <div className="clinic-surface rounded-[2rem] p-8 sm:p-10">
+          <h2 className="text-3xl font-bold text-slate-950">Вход в систему</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Используйте email и пароль своей учетной записи пациента.
+          </p>
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Пароль"
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400"
-          />
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="clinic-input w-full"
+            />
 
-          {error && (
-            <div className="text-red-400 text-sm text-center bg-red-500/10 border border-red-500/30 rounded-lg py-2">
-              {error}
-            </div>
-          )}
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Пароль"
+              className="clinic-input w-full"
+            />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {loading ? "Вход..." : "Войти"}
-          </button>
-        </form>
+            {error && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
 
-        <p className="text-center text-gray-400 text-sm mt-6">
-          Нет аккаунта?{" "}
-          <Link
-            href="/register"
-            className="text-blue-400 hover:text-blue-300 underline"
-          >
-            Зарегистрироваться
-          </Link>
-        </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="clinic-btn-primary w-full disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {loading ? "Вход..." : "Войти"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-slate-500">
+            Нет аккаунта?{" "}
+            <Link
+              href="/register"
+              className="font-semibold text-slate-950 underline"
+            >
+              Зарегистрироваться
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );

@@ -1,11 +1,16 @@
 "use client";
 
-import { FullDoctor } from "@/lib/types";
+import type { FullDoctor } from "@/lib/types";
 import { useAuth } from "@/lib/context";
-import { IconArrowRight, IconCheck, IconUser } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconArrowRight,
+  IconCheck,
+  IconUser,
+} from "@tabler/icons-react";
 import axios from "axios";
 import Link from "next/link";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 
 /* =====================
    TYPES
@@ -16,6 +21,21 @@ type ScheduleSlot = {
   startDateTime: string;
   endDateTime: string;
 };
+
+function formatDateLabel(value: string) {
+  return new Date(value).toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
+}
+
+function formatTimeLabel(value: string) {
+  return new Date(value).toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /* =====================
    PAGE
@@ -176,25 +196,57 @@ function StepDoctor({
   setSelectedDoctor: Dispatch<SetStateAction<FullDoctor | null>>;
 }) {
   const [doctors, setDoctors] = useState<FullDoctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    axios.get("/api/doctors").then((res) => setDoctors(res.data));
+    axios
+      .get("/api/doctors")
+      .then((res) => {
+        setDoctors(res.data);
+        setError(null);
+      })
+      .catch(() => {
+        setDoctors([]);
+        setError("Не удалось загрузить список врачей");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <section className="grid lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
-        {doctors.map((doctor) => (
-          <DoctorCard
-            key={doctor.id}
-            doctor={doctor}
-            selected={selectedDoctor?.id === doctor.id}
-            onSelect={setSelectedDoctor}
-          />
-        ))}
+        {loading ? (
+          <div className="md:col-span-2 rounded-xl border border-white/10 bg-white/5 p-6 text-gray-300">
+            Загружаем список врачей...
+          </div>
+        ) : error ? (
+          <div className="md:col-span-2 rounded-xl border border-rose-400/20 bg-rose-500/10 p-6 text-rose-200">
+            {error}
+          </div>
+        ) : doctors.length === 0 ? (
+          <div className="md:col-span-2 rounded-xl border border-white/10 bg-white/5 p-6 text-gray-300">
+            Врачи пока не добавлены.
+          </div>
+        ) : (
+          doctors.map((doctor) => (
+            <DoctorCard
+              key={doctor.id}
+              doctor={doctor}
+              selected={selectedDoctor?.id === doctor.id}
+              onSelect={setSelectedDoctor}
+            />
+          ))
+        )}
       </div>
 
       <aside className="bg-white/5 p-6 rounded-xl border border-white/10">
+        <div className="mb-5">
+          <div className="text-sm text-gray-400">Выбранный врач</div>
+          <div className="mt-2 font-semibold">
+            {selectedDoctor?.user.fullName ?? "Пока не выбран"}
+          </div>
+        </div>
         <button
           disabled={!selectedDoctor}
           onClick={onNext}
@@ -227,25 +279,41 @@ function StepDateTime({
   const [slots, setSlots] = useState<ScheduleSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
   const [loading, setLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setSlotsLoading(true);
+    setSelectedSlot(null);
     axios
       .get(`/api/schedule?doctorId=${doctor.id}`)
-      .then((res) => setSlots(res.data));
+      .then((res) => {
+        setSlots(res.data);
+        setError(null);
+      })
+      .catch(() => {
+        setSlots([]);
+        setError("Не удалось загрузить свободные слоты");
+      })
+      .finally(() => setSlotsLoading(false));
   }, [doctor.id]);
 
-  const grouped = slots.reduce<Record<string, ScheduleSlot[]>>((acc, slot) => {
-    const date = slot.startDateTime.slice(0, 10);
-    acc[date] ??= [];
-    acc[date].push(slot);
-    return acc;
-  }, {});
+  const grouped = useMemo(
+    () =>
+      slots.reduce<Record<string, ScheduleSlot[]>>((acc, slot) => {
+        const date = slot.startDateTime.slice(0, 10);
+        acc[date] ??= [];
+        acc[date].push(slot);
+        return acc;
+      }, {}),
+    [slots],
+  );
 
   const submit = async () => {
     if (!selectedSlot) return;
 
-    const date = selectedSlot.startDateTime.slice(0, 10);
-    const time = selectedSlot.startDateTime.slice(11, 16);
+    const date = formatDateLabel(selectedSlot.startDateTime);
+    const time = formatTimeLabel(selectedSlot.startDateTime);
     const token = localStorage.getItem("token");
     if (!token) {
       alert("Сессия истекла. Войдите заново.");
@@ -280,38 +348,80 @@ function StepDateTime({
   return (
     <section className="grid lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-6">
-        {Object.entries(grouped).map(([date, daySlots]) => (
-          <div
-            key={date}
-            className="bg-white/5 p-6 rounded-xl border border-white/10"
-          >
-            <h3 className="font-semibold mb-3">{date}</h3>
-
-            <div className="flex flex-wrap gap-2">
-              {daySlots.map((slot) => {
-                const time = slot.startDateTime.slice(11, 16);
-                const selected = selectedSlot?.id === slot.id;
-
-                return (
-                  <button
-                    key={slot.id}
-                    onClick={() => setSelectedSlot(slot)}
-                    className={`px-4 py-2 rounded border ${
-                      selected
-                        ? "bg-blue-600 border-blue-600"
-                        : "border-white/20 hover:border-white/40"
-                    }`}
-                  >
-                    {time}
-                  </button>
-                );
-              })}
+        {slotsLoading ? (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-gray-300">
+            Загружаем доступные слоты...
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-6 text-rose-200">
+            <div className="flex items-center gap-3">
+              <IconAlertCircle />
+              <span>{error}</span>
             </div>
           </div>
-        ))}
+        ) : Object.keys(grouped).length === 0 ? (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-gray-300">
+            Для этого врача пока нет доступных окон в ближайшие 14 дней.
+          </div>
+        ) : (
+          Object.entries(grouped).map(([date, daySlots]) => (
+            <div
+              key={date}
+              className="bg-white/5 p-6 rounded-xl border border-white/10"
+            >
+              <h3 className="mb-3 font-semibold capitalize">
+                {formatDateLabel(date)}
+              </h3>
+
+              <div className="flex flex-wrap gap-2">
+                {daySlots.map((slot) => {
+                  const time = formatTimeLabel(slot.startDateTime);
+                  const selected = selectedSlot?.id === slot.id;
+
+                  return (
+                    <button
+                      key={slot.id}
+                      onClick={() => setSelectedSlot(slot)}
+                      className={`px-4 py-2 rounded border ${
+                        selected
+                          ? "bg-blue-600 border-blue-600"
+                          : "border-white/20 hover:border-white/40"
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <aside className="bg-white/5 p-6 rounded-xl border border-white/10">
+        <div className="mb-5 space-y-2">
+          <div>
+            <div className="text-sm text-gray-400">Врач</div>
+            <div className="font-semibold">{doctor.user.fullName}</div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-400">Специальность</div>
+            <div className="text-sm text-gray-200">
+              {doctor.doctorSpecialties
+                .map((item) => item.specialty.name)
+                .join(", ")}
+            </div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-400">Выбранный слот</div>
+            <div className="text-sm text-gray-200">
+              {selectedSlot
+                ? `${formatDateLabel(selectedSlot.startDateTime)}, ${formatTimeLabel(selectedSlot.startDateTime)}`
+                : "Слот еще не выбран"}
+            </div>
+          </div>
+        </div>
+
         <button
           disabled={!selectedSlot || loading}
           onClick={submit}
@@ -355,9 +465,14 @@ function Success({
         {doctor?.user.fullName}, {date} в {time}
       </p>
 
-      <Link href="/" className="bg-blue-600 px-6 py-3 rounded-lg">
-        На главную
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Link href="/profile" className="bg-blue-600 px-6 py-3 rounded-lg">
+          Открыть мои талоны
+        </Link>
+        <Link href="/" className="border border-white/20 px-6 py-3 rounded-lg">
+          На главную
+        </Link>
+      </div>
     </div>
   );
 }

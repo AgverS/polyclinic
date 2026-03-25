@@ -5,6 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/context";
 
 type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+type PharmacyOrderStatus =
+  | "CREATED"
+  | "PROCESSING"
+  | "READY"
+  | "COMPLETED"
+  | "CANCELLED";
 
 type Appointment = {
   id: number;
@@ -39,27 +45,29 @@ type PharmacyOrderItem = {
 };
 
 type PharmacyOrder = {
-  id: string;
-  address?: string;
-  phone?: string;
+  id: number;
+  address: string;
+  phone: string;
   items: PharmacyOrderItem[];
   total: number;
   createdAt: string;
-  status?: string;
-  userId?: number | null;
+  updatedAt: string;
+  status: PharmacyOrderStatus;
+  userId: number | null;
+  userName: string | null;
+  comment: string;
 };
 
 type HomeCallHistoryItem = {
-  id: string;
+  id: number;
   fullName: string;
   phone: string;
   address: string;
   doctor: string;
   date: string;
   time: string;
-  status?: string;
+  status: string;
   createdAt: string;
-  userId?: number | null;
 };
 
 type TabKey = "overview" | "appointments" | "orders" | "doctors" | "home-calls";
@@ -71,15 +79,6 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "doctors", label: "Посещенные врачи" },
   { key: "home-calls", label: "Вызовы на дом" },
 ];
-
-function safeParse<T>(raw: string | null, fallback: T): T {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("ru-RU", {
@@ -123,6 +122,25 @@ function statusBadge(status: AppointmentStatus) {
   return "bg-rose-50 text-rose-700 border-rose-200";
 }
 
+function pharmacyStatusLabel(status: PharmacyOrderStatus) {
+  if (status === "CREATED") return "Создан";
+  if (status === "PROCESSING") return "В обработке";
+  if (status === "READY") return "Готов к выдаче";
+  if (status === "COMPLETED") return "Завершен";
+  return "Отменен";
+}
+
+function pharmacyStatusClass(status: PharmacyOrderStatus) {
+  if (status === "CREATED")
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  if (status === "PROCESSING")
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  if (status === "READY") return "bg-cyan-50 text-cyan-700 border-cyan-200";
+  if (status === "COMPLETED")
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  return "bg-rose-50 text-rose-700 border-rose-200";
+}
+
 export default function ProfilePage() {
   const { user } = useAuth();
 
@@ -131,38 +149,13 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<PharmacyOrder[]>([]);
   const [homeCalls, setHomeCalls] = useState<HomeCallHistoryItem[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingHomeCalls, setLoadingHomeCalls] = useState(false);
   const [appointmentsError, setAppointmentsError] = useState<string | null>(
     null,
   );
-
-  useEffect(() => {
-    if (!user || typeof window === "undefined") return;
-
-    const rawOrders = safeParse<PharmacyOrder[]>(
-      localStorage.getItem("orders"),
-      [],
-    );
-    const visibleOrders = rawOrders
-      .filter((order) => order.userId == null || order.userId === user.id)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrders(visibleOrders);
-
-    const rawHomeCalls = safeParse<HomeCallHistoryItem[]>(
-      localStorage.getItem("home_calls"),
-      [],
-    );
-    const visibleHomeCalls = rawHomeCalls
-      .filter((item) => item.userId == null || item.userId === user.id)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-    setHomeCalls(visibleHomeCalls);
-  }, [user]);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [homeCallsError, setHomeCallsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
@@ -172,29 +165,91 @@ export default function ProfilePage() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingAppointments(true);
+    setLoadingOrders(true);
+    setLoadingHomeCalls(true);
     setAppointmentsError(null);
+    setOrdersError(null);
+    setHomeCallsError(null);
 
-    fetch("/api/appointment", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(async (res) => {
+    Promise.allSettled([
+      fetch("/api/appointment", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).then(async (res) => {
         if (!res.ok) {
           const payload = await res.json().catch(() => ({}));
           throw new Error(payload?.message || "Не удалось загрузить талоны");
         }
 
         return res.json() as Promise<Appointment[]>;
-      })
-      .then((payload) => setAppointments(payload))
-      .catch((err: unknown) => {
+      }),
+      fetch("/api/pharmacy/orders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).then(async (res) => {
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(
+            payload?.message || "Не удалось загрузить заказы аптеки",
+          );
+        }
+
+        return res.json() as Promise<PharmacyOrder[]>;
+      }),
+      fetch("/api/home-call", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).then(async (res) => {
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(
+            payload?.message || "Не удалось загрузить вызовы на дом",
+          );
+        }
+
+        return res.json() as Promise<HomeCallHistoryItem[]>;
+      }),
+    ]).then(([appointmentsResult, ordersResult, homeCallsResult]) => {
+      if (appointmentsResult.status === "fulfilled") {
+        setAppointments(appointmentsResult.value);
+      } else {
         const message =
-          err instanceof Error ? err.message : "Ошибка загрузки талонов";
+          appointmentsResult.reason instanceof Error
+            ? appointmentsResult.reason.message
+            : "Ошибка загрузки талонов";
         setAppointmentsError(message);
         setAppointments([]);
-      })
-      .finally(() => setLoadingAppointments(false));
+      }
+
+      if (ordersResult.status === "fulfilled") {
+        setOrders(ordersResult.value);
+      } else {
+        const message =
+          ordersResult.reason instanceof Error
+            ? ordersResult.reason.message
+            : "Ошибка загрузки заказов";
+        setOrdersError(message);
+        setOrders([]);
+      }
+
+      if (homeCallsResult.status === "fulfilled") {
+        setHomeCalls(homeCallsResult.value);
+      } else {
+        const message =
+          homeCallsResult.reason instanceof Error
+            ? homeCallsResult.reason.message
+            : "Ошибка загрузки вызовов";
+        setHomeCallsError(message);
+        setHomeCalls([]);
+      }
+
+      setLoadingAppointments(false);
+      setLoadingOrders(false);
+      setLoadingHomeCalls(false);
+    });
   }, [user]);
 
   const upcomingAppointments = useMemo(
@@ -252,18 +307,15 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-6 py-20">
-        <div className="max-w-xl w-full bg-white border border-gray-200 rounded-2xl p-8 text-center">
-          <h1 className="text-3xl font-bold mb-3">
+      <main className="clinic-shell flex items-center justify-center px-6 py-20">
+        <div className="clinic-surface max-w-xl w-full rounded-[2rem] p-8 text-center">
+          <h1 className="mb-3 text-3xl font-bold text-slate-950">
             Личный кабинет пользователя
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="mb-6 text-slate-600">
             Войдите, чтобы видеть талоны, посещенных врачей и заказы аптеки.
           </p>
-          <Link
-            href="/login"
-            className="inline-flex h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white items-center justify-center font-semibold"
-          >
+          <Link href="/login" className="clinic-btn-primary">
             Войти в систему
           </Link>
         </div>
@@ -272,24 +324,29 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 pt-10 pb-16">
+    <main className="clinic-shell pt-10 pb-16">
       <div className="max-w-7xl mx-auto px-6">
-        <h1 className="text-3xl font-bold mb-2">Личный кабинет</h1>
-        <p className="text-gray-600 mb-8">
-          {user.fullName}. Здесь собраны талоны, история посещений и заказы.
-        </p>
+        <div className="clinic-hero rounded-[2rem] p-8 text-white sm:p-10">
+          <div className="clinic-kicker">Личный кабинет</div>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight">
+            Управление талонами, заказами и историей обращений
+          </h1>
+          <p className="mt-4 text-slate-300">
+            {user.fullName}. Здесь собраны талоны, история посещений и заказы.
+          </p>
+        </div>
 
-        <div className="grid lg:grid-cols-4 gap-8">
+        <div className="mt-8 grid lg:grid-cols-4 gap-8">
           <aside className="lg:col-span-1">
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="clinic-surface rounded-[1.7rem] overflow-hidden">
               {TABS.map((item) => (
                 <button
                   key={item.key}
                   onClick={() => setTab(item.key)}
                   className={`w-full text-left px-4 py-3 text-sm transition ${
                     tab === item.key
-                      ? "bg-blue-600 text-white font-semibold"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-[var(--clinic-navy)] text-white font-semibold"
+                      : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   {item.label}
@@ -324,7 +381,7 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                <div className="clinic-surface rounded-[1.7rem] p-6">
                   <h2 className="text-xl font-semibold mb-4">
                     Ближайшие талоны
                   </h2>
@@ -346,7 +403,7 @@ export default function ProfilePage() {
             )}
 
             {tab === "appointments" && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="clinic-surface rounded-[1.7rem] p-6">
                 <h2 className="text-xl font-semibold mb-4">Все талоны</h2>
                 {loadingAppointments ? (
                   <p className="text-gray-500">Загрузка...</p>
@@ -365,21 +422,32 @@ export default function ProfilePage() {
             )}
 
             {tab === "orders" && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="clinic-surface rounded-[1.7rem] p-6">
                 <h2 className="text-xl font-semibold mb-4">Заказы из аптеки</h2>
-                {orders.length === 0 ? (
+                {loadingOrders ? (
+                  <p className="text-gray-500">Загрузка...</p>
+                ) : ordersError ? (
+                  <p className="text-rose-600">{ordersError}</p>
+                ) : orders.length === 0 ? (
                   <EmptyState text="Заказов из аптеки пока нет" />
                 ) : (
                   <div className="space-y-4">
                     {orders.map((order) => (
                       <div
                         key={order.id}
-                        className="border border-gray-200 rounded-xl p-4"
+                        className="rounded-[1.4rem] border border-slate-200 bg-white p-4"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                           <div className="font-semibold">Заказ #{order.id}</div>
-                          <div className="text-sm text-gray-500">
-                            {formatDateTime(order.createdAt)}
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`text-xs px-2.5 py-1 rounded-full border ${pharmacyStatusClass(order.status)}`}
+                            >
+                              {pharmacyStatusLabel(order.status)}
+                            </span>
+                            <div className="text-sm text-gray-500">
+                              {formatDateTime(order.createdAt)}
+                            </div>
                           </div>
                         </div>
 
@@ -403,9 +471,13 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="mt-4 text-sm text-gray-500">
-                          {order.address ? `Адрес: ${order.address}` : ""}
-                          {order.phone ? ` · Телефон: ${order.phone}` : ""}
+                          Адрес: {order.address} · Телефон: {order.phone}
                         </div>
+                        {order.comment ? (
+                          <div className="mt-2 text-sm text-gray-500">
+                            Комментарий: {order.comment}
+                          </div>
+                        ) : null}
                         <div className="mt-2 font-semibold text-indigo-700">
                           Итого: {formatMoney(order.total)}
                         </div>
@@ -417,7 +489,7 @@ export default function ProfilePage() {
             )}
 
             {tab === "doctors" && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="clinic-surface rounded-[1.7rem] p-6">
                 <h2 className="text-xl font-semibold mb-4">Кого вы посещали</h2>
                 {loadingAppointments ? (
                   <p className="text-gray-500">Загрузка...</p>
@@ -428,7 +500,7 @@ export default function ProfilePage() {
                     {visitedDoctors.map((doctor) => (
                       <div
                         key={doctor.name}
-                        className="border border-gray-200 rounded-xl p-4"
+                        className="rounded-[1.4rem] border border-slate-200 bg-white p-4"
                       >
                         <div className="font-semibold">{doctor.name}</div>
                         <div className="text-sm text-gray-600 mt-1">
@@ -448,18 +520,22 @@ export default function ProfilePage() {
             )}
 
             {tab === "home-calls" && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="clinic-surface rounded-[1.7rem] p-6">
                 <h2 className="text-xl font-semibold mb-4">
                   Вызовы врача на дом
                 </h2>
-                {homeCalls.length === 0 ? (
+                {loadingHomeCalls ? (
+                  <p className="text-gray-500">Загрузка...</p>
+                ) : homeCallsError ? (
+                  <p className="text-rose-600">{homeCallsError}</p>
+                ) : homeCalls.length === 0 ? (
                   <EmptyState text="Вы еще не оформляли вызовы на дом" />
                 ) : (
                   <div className="space-y-3">
                     {homeCalls.map((item) => (
                       <div
                         key={item.id}
-                        className="border border-gray-200 rounded-xl p-4"
+                        className="rounded-[1.4rem] border border-slate-200 bg-white p-4"
                       >
                         <div className="font-semibold">{item.doctor}</div>
                         <div className="text-sm text-gray-600 mt-1">
@@ -494,7 +570,7 @@ function StatCard({
   hint: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-4">
+    <div className="clinic-surface rounded-[1.4rem] p-4">
       <div className="text-sm text-gray-500">{label}</div>
       <div className="text-3xl font-bold mt-2">{value}</div>
       <div className="text-xs text-gray-500 mt-2">{hint}</div>
@@ -504,7 +580,7 @@ function StatCard({
 
 function AppointmentCard({ appointment }: { appointment: Appointment }) {
   return (
-    <div className="border border-gray-200 rounded-xl p-4">
+    <div className="rounded-[1.4rem] border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap justify-between gap-3 items-center mb-2">
         <div className="font-semibold">
           {appointment.doctor.user.fullName} · кабинет {appointment.doctor.room}
@@ -533,7 +609,7 @@ function AppointmentCard({ appointment }: { appointment: Appointment }) {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
+    <div className="rounded-[1.4rem] border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-gray-500">
       {text}
     </div>
   );

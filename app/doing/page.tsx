@@ -1,155 +1,123 @@
 "use client";
 
-import Link from "next/link";
-
-export default function DoingPage() {
-  return (
-    <main className="bg-slate-900 text-white min-h-screen">
-      <DoingHero />
-
-      <section className="max-w-7xl mx-auto px-6 py-16 space-y-20">
-        <p className="text-center max-w-3xl mx-auto text-lg text-gray-300 leading-relaxed">
-          Городская поликлиника №26 предоставляет широкий спектр медицинских
-          услуг для профилактики, диагностики и лечения заболеваний. Мы
-          обеспечиваем квалифицированную помощь в комфортных условиях.
-        </p>
-
-        <DirectionsGrid />
-        <DoingStats />
-        <ExtraServices />
-
-        <div className="text-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 border border-white/20 px-6 py-3 rounded-lg hover:bg-white/10 transition"
-          >
-            ← Вернуться на главную
-          </Link>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function DoingHero() {
-  return (
-    <section className="h-70 bg-linear-to-r from-indigo-900 to-blue-900 flex items-center justify-center">
-      <div className="text-center px-6">
-        <h1 className="text-4xl font-bold mb-4">Направления деятельности</h1>
-        <p className="text-gray-200 max-w-3xl">
-          Широкий спектр медицинских услуг для профилактики, диагностики и
-          лечения заболеваний
-        </p>
-      </div>
-    </section>
-  );
-}
-
-// TODO: заменить на данные из backend (Prisma)
 const directions = [
   {
     title: "Терапевтическая помощь",
-    text: "Диагностика и лечение заболеваний, диспансерное наблюдение.",
+    text: "Диагностика, наблюдение, оформление больничных и ведение хронических состояний.",
   },
   {
     title: "Педиатрия",
-    text: "Медицинское обслуживание детей, вакцинация и осмотры.",
+    text: "Осмотры, прививки, контроль развития и маршрутизация детей к профильным врачам.",
   },
   {
     title: "Кардиология",
-    text: "ЭКГ, контроль давления и профилактика осложнений.",
+    text: "Консультации, профилактика осложнений и сопровождение пациентов группы риска.",
   },
   {
     title: "Хирургия",
-    text: "Мелкие вмешательства и послеоперационное наблюдение.",
+    text: "Амбулаторные процедуры и послеоперационное наблюдение без лишних направлений.",
   },
   {
-    title: "Лабораторные исследования",
-    text: "Анализы крови, ПЦР, биохимия и экспресс-тесты.",
+    title: "Лаборатория",
+    text: "Анализы крови, биохимия, экспресс-тесты и контроль ключевых показателей.",
   },
   {
-    title: "Профилактика и вакцинация",
-    text: "Прививки, профилактические мероприятия, школы здоровья.",
+    title: "Профилактика",
+    text: "Диспансеризация, школы здоровья и сезонные программы вакцинации.",
   },
 ];
-
-function DirectionsGrid() {
-  return (
-    <section>
-      <h2 className="text-2xl font-bold mb-10 text-center">
-        Основные направления
-      </h2>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {directions.map((d) => (
-          <div
-            key={d.title}
-            className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-blue-500/50 transition"
-          >
-            <h3 className="font-semibold text-lg mb-3">{d.title}</h3>
-            <p className="text-gray-400 text-sm">{d.text}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-const stats = [
-  { value: "35+", label: "Лет успешной работы" },
-  { value: "25 000+", label: "Пациентов в год" },
-  { value: "50+", label: "Квалифицированных специалистов" },
-  { value: "15+", label: "Медицинских направлений" },
-];
-
-function DoingStats() {
-  return (
-    <section>
-      <h2 className="text-2xl font-bold mb-10 text-center">
-        Поликлиника в цифрах
-      </h2>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="bg-white/5 border border-white/10 rounded-xl p-6 text-center"
-          >
-            <div className="text-3xl font-bold text-blue-400">{s.value}</div>
-            <div className="text-gray-400 mt-2 text-sm">{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 const services = [
   "Медицинские справки",
-  "Выезд врача на дом",
-  "Оформление больничных",
   "Профосмотры",
+  "Домашние визиты",
   "Экспресс-анализы",
-  "Неотложная помощь",
+  "Оформление листков нетрудоспособности",
+  "Плановая профилактика",
 ];
 
-function ExtraServices() {
+export default function DoingPage() {
   return (
-    <section>
-      <h2 className="text-2xl font-bold mb-8 text-center">
-        Дополнительные услуги
-      </h2>
+    <main className="clinic-shell">
+      <section className="mx-auto max-w-7xl px-6 py-12 sm:px-8">
+        <div className="clinic-hero rounded-[2rem] p-8 text-white sm:p-10">
+          <div className="clinic-kicker">Деятельность поликлиники</div>
+          <h1 className="mt-5 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl">
+            Основные направления помощи, диагностики и профилактики
+          </h1>
+          <p className="mt-5 max-w-3xl text-base leading-7 text-slate-300">
+            Поликлиника №26 закрывает основные ежедневные сценарии пациентов:
+            плановый прием, профилактику, наблюдение, консультации и поддержку
+            на дому.
+          </p>
+        </div>
+      </section>
 
-      <div className="flex flex-wrap justify-center gap-3">
-        {services.map((s) => (
-          <span
-            key={s}
-            className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-gray-300"
-          >
-            {s}
-          </span>
-        ))}
-      </div>
-    </section>
+      <section className="mx-auto max-w-7xl px-6 py-4 sm:px-8">
+        <div className="clinic-surface rounded-[2rem] p-6 sm:p-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-800">
+                Направления
+              </div>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+                Чем занимается поликлиника каждый день
+              </h2>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {directions.map((item) => (
+              <div key={item.title} className="clinic-card rounded-[1.6rem] p-5">
+                <h3 className="text-xl font-semibold text-slate-950">
+                  {item.title}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="clinic-card rounded-[1.7rem] p-6">
+              <div className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-800">
+                Дополнительно
+              </div>
+              <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                Сопутствующие услуги без перегруженного интерфейса
+              </h3>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {services.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="clinic-card rounded-[1.7rem] p-6">
+              <div className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-800">
+                Подход
+              </div>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Сайт и очный сервис должны работать одинаково понятно: врач,
+                время, запись, профиль пациента, дополнительные услуги и
+                контакты находятся в ожидаемых местах и не требуют поиска по
+                десяткам однотипных ссылок.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Именно поэтому ключевые сценарии вынесены в отдельные разделы:
+                публичное расписание, список врачей, онлайн-талон, вызов на дом
+                и аптека.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

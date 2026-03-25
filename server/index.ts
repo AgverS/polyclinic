@@ -46,6 +46,16 @@ async function bootstrap() {
 
   const app = express();
   app.disable("x-powered-by");
+
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.path.startsWith("/api/pharmacy")) {
+      next();
+      return;
+    }
+
+    await handle(req, res);
+  });
+
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));

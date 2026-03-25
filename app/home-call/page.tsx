@@ -21,37 +21,6 @@ type Slot = {
   time: string;
 };
 
-type HomeCallHistoryItem = HomeCallData & {
-  id: string;
-  createdAt: string;
-  status: "PENDING";
-  userId: number | null;
-};
-
-function saveHomeCallHistory(data: HomeCallData, userId: number | null) {
-  if (typeof window === "undefined") return;
-
-  const entry: HomeCallHistoryItem = {
-    ...data,
-    id: Date.now().toString(),
-    createdAt: new Date().toISOString(),
-    status: "PENDING",
-    userId,
-  };
-
-  const history = (() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("home_calls") || "[]",
-      ) as HomeCallHistoryItem[];
-    } catch {
-      return [] as HomeCallHistoryItem[];
-    }
-  })();
-
-  localStorage.setItem("home_calls", JSON.stringify([entry, ...history]));
-}
-
 export default function HomeCallPage() {
   const { user } = useAuth();
   const [data, setData] = useState<HomeCallData>({
@@ -66,6 +35,15 @@ export default function HomeCallPage() {
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setData((current) => ({
+      ...current,
+      fullName: user.fullName,
+    }));
+  }, [user]);
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -83,9 +61,24 @@ export default function HomeCallPage() {
       return;
     }
 
-    await axios.post("/api/home-call", data);
-    saveHomeCallHistory(data, user?.id ?? null);
-    setSent(true);
+    const token =
+      typeof window === "undefined" ? null : localStorage.getItem("token");
+
+    setSubmitting(true);
+    try {
+      await axios.post("/api/home-call", data, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      setSent(true);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message ?? "Не удалось оформить вызов");
+      } else {
+        alert("Не удалось оформить вызов");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function downloadTicket() {
@@ -101,38 +94,47 @@ export default function HomeCallPage() {
   }
 
   return (
-    <main className="bg-slate-900 text-white min-h-screen">
-      <section className="h-64 bg-linear-to-r from-indigo-900 to-blue-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-2">Вызов врача на дом</h1>
-          <p className="text-gray-300">
-            Если вы не можете прийти в клинику - врач приедет к вам
+    <main className="clinic-shell">
+      <section className="mx-auto max-w-6xl px-6 py-12 sm:px-8">
+        <div className="clinic-hero rounded-[2rem] p-8 text-white sm:p-10">
+          <div className="clinic-kicker">Вызов врача на дом</div>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
+            Оформление домашнего визита в том же стиле, что и запись на прием
+          </h1>
+          <p className="mt-5 max-w-3xl text-base leading-7 text-slate-300">
+            Если пациенту сложно приехать в поликлинику, заявку можно заполнить
+            онлайн и сразу получить талон после подтверждения.
           </p>
         </div>
       </section>
 
-      <section className="max-w-4xl mx-auto px-6 py-16">
+      <section className="mx-auto max-w-4xl px-6 py-4 sm:px-8">
         {!sent ? (
-          <div className="bg-white/5 border border-white/10 rounded-xl p-8 space-y-6">
-            <h2 className="text-2xl font-bold">Заявка</h2>
+          <div className="clinic-surface rounded-[2rem] p-8 space-y-6">
+            <h2 className="text-2xl font-bold text-slate-950">Заявка</h2>
 
             <Input
               placeholder="ФИО пациента"
+              value={data.fullName}
               onChange={(e) => setData({ ...data, fullName: e.target.value })}
             />
 
             <Input
               placeholder="Телефон"
+              value={data.phone}
               onChange={(e) => setData({ ...data, phone: e.target.value })}
             />
 
             <Input
               placeholder="Адрес"
+              value={data.address}
               onChange={(e) => setData({ ...data, address: e.target.value })}
             />
 
             <div>
-              <p className="mb-2">Специальность врача</p>
+              <p className="mb-2 text-sm font-medium text-slate-700">
+                Специальность врача
+              </p>
               <div className="flex flex-wrap gap-2">
                 {specialties.map((s) => (
                   <button
@@ -140,8 +142,8 @@ export default function HomeCallPage() {
                     onClick={() => setData({ ...data, doctor: s })}
                     className={`px-4 py-2 rounded-lg border ${
                       data.doctor === s
-                        ? "bg-blue-600 border-blue-500"
-                        : "border-white/20 hover:bg-white/10"
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     {s}
@@ -151,7 +153,9 @@ export default function HomeCallPage() {
             </div>
 
             <div>
-              <p className="mb-2">Дата и время</p>
+              <p className="mb-2 text-sm font-medium text-slate-700">
+                Дата и время
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {slots.map((slot) => (
                   <button
@@ -165,8 +169,8 @@ export default function HomeCallPage() {
                     }
                     className={`px-4 py-2 rounded-lg border ${
                       data.date === slot.date && data.time === slot.time
-                        ? "bg-blue-600 border-blue-500"
-                        : "border-white/20 hover:bg-white/10"
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     {slot.date} {slot.time}
@@ -177,30 +181,33 @@ export default function HomeCallPage() {
 
             <button
               onClick={submit}
-              className="bg-blue-600 hover:bg-blue-500 rounded-lg px-6 py-3 w-full font-semibold"
+              disabled={submitting}
+              className="clinic-btn-primary w-full disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              Вызвать врача
+              {submitting ? "Отправляем..." : "Вызвать врача"}
             </button>
           </div>
         ) : (
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl font-bold">Заявка принята</h2>
+          <div className="clinic-surface rounded-[2rem] p-8 text-center space-y-4">
+            <h2 className="text-3xl font-bold text-slate-950">
+              Заявка принята
+            </h2>
 
-            <p className="text-gray-300">Пациент: {data.fullName}</p>
-            <p className="text-gray-300">Врач: {data.doctor}</p>
-            <p className="text-gray-300">
+            <p className="text-slate-600">Пациент: {data.fullName}</p>
+            <p className="text-slate-600">Врач: {data.doctor}</p>
+            <p className="text-slate-600">
               {data.date} {data.time}
             </p>
 
             <div className="flex justify-center gap-4 pt-4">
               <button
                 onClick={downloadTicket}
-                className="border border-white/20 px-6 py-3 rounded-lg"
+                className="rounded-2xl border border-slate-200 px-6 py-3 font-semibold text-slate-900 transition hover:bg-slate-50"
               >
-                Распечатать талон
+                Скачать талон PDF
               </button>
 
-              <Link href="/" className="bg-blue-600 px-6 py-3 rounded-lg">
+              <Link href="/" className="clinic-btn-primary">
                 На главную
               </Link>
             </div>

@@ -5,6 +5,7 @@ import {
   type NextFunction,
 } from "express";
 import bcrypt from "bcrypt";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import prisma from "../lib/prisma";
 import { getUserFromAuthHeader } from "../lib/auth";
 import { generateJwt } from "../lib/jwt";
@@ -90,8 +91,8 @@ router.get("/health", async (_req, res) => {
 router.get(
   "/admin/patients",
   wrap(async (req, res) => {
-    const role = getRoleHeader(req);
-    if (role !== ROLES.ADMIN) {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
@@ -113,8 +114,8 @@ router.get(
 router.delete(
   "/admin/patients/:id",
   wrap(async (req, res) => {
-    const role = getRoleHeader(req);
-    if (role !== ROLES.ADMIN) {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
@@ -124,6 +125,157 @@ router.delete(
     });
 
     res.json({ ok: true });
+  }),
+);
+
+router.get(
+  "/admin/overview",
+  wrap(async (req, res) => {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const [
+      doctors,
+      patients,
+      appointments,
+      homeCalls,
+      unreadFeedback,
+      pharmacyOrders,
+      recentHomeCalls,
+      recentFeedback,
+    ] = await Promise.all([
+      prisma.doctor.count(),
+      prisma.user.count({ where: { role: ROLES.PATIENT } }),
+      prisma.appointment.count(),
+      prisma.homeCall.count(),
+      prisma.feedback.count({ where: { isRead: false } }),
+      prisma.pharmacyOrder.count(),
+      prisma.homeCall.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          fullName: true,
+          doctor: true,
+          date: true,
+          time: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+      prisma.feedback.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          subject: true,
+          isRead: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    res.json({
+      stats: {
+        doctors,
+        patients,
+        appointments,
+        homeCalls,
+        unreadFeedback,
+        pharmacyOrders,
+      },
+      recentHomeCalls,
+      recentFeedback,
+    });
+  }),
+);
+
+router.get(
+  "/admin/home-calls",
+  wrap(async (req, res) => {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const calls = await prisma.homeCall.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(calls);
+  }),
+);
+
+router.patch(
+  "/admin/home-calls/:id",
+  wrap(async (req, res) => {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { status } = req.body as { status?: AppointmentStatus };
+    if (!status || !APPOINTMENT_STATUSES[status]) {
+      res.status(400).json({ message: "Некорректный статус" });
+      return;
+    }
+
+    const updated = await prisma.homeCall.update({
+      where: { id: Number(req.params.id) },
+      data: { status },
+    });
+
+    res.json(updated);
+  }),
+);
+
+router.get(
+  "/admin/feedback",
+  wrap(async (req, res) => {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const onlyUnread = String(req.query.onlyUnread || "") === "true";
+
+    const feedback = await prisma.feedback.findMany({
+      where: onlyUnread ? { isRead: false } : undefined,
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(feedback);
+  }),
+);
+
+router.patch(
+  "/admin/feedback/:id",
+  wrap(async (req, res) => {
+    const session = getSession(req);
+    if (!session || session.role !== ROLES.ADMIN) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { isRead } = req.body as { isRead?: boolean };
+    if (typeof isRead !== "boolean") {
+      res.status(400).json({ message: "isRead должен быть boolean" });
+      return;
+    }
+
+    const updated = await prisma.feedback.update({
+      where: { id: Number(req.params.id) },
+      data: { isRead },
+    });
+
+    res.json(updated);
   }),
 );
 
@@ -670,6 +822,7 @@ router.get(
 router.post(
   "/home-call",
   wrap(async (req, res) => {
+    const session = getSession(req);
     const { fullName, phone, address, doctor, date, time } = req.body as {
       fullName?: string;
       phone?: string;
@@ -679,14 +832,29 @@ router.post(
       time?: string;
     };
 
-    if (!fullName || !phone || !address || !doctor || !date || !time) {
+    if (!phone || !address || !doctor || !date || !time) {
       res.status(400).json({ message: "Не все поля заполнены" });
+      return;
+    }
+
+    let resolvedFullName = String(fullName ?? "").trim();
+
+    if (session) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.id },
+        select: { fullName: true },
+      });
+      resolvedFullName = user?.fullName ?? resolvedFullName;
+    }
+
+    if (!resolvedFullName) {
+      res.status(400).json({ message: "ФИО обязательно" });
       return;
     }
 
     const homeCall = await prisma.homeCall.create({
       data: {
-        fullName,
+        fullName: resolvedFullName,
         phone,
         address,
         doctor,
@@ -696,6 +864,42 @@ router.post(
     });
 
     res.json({ success: true, homeCall });
+  }),
+);
+
+router.get(
+  "/home-call",
+  wrap(async (req, res) => {
+    const session = getSession(req);
+    if (!session) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    if (session.role === ROLES.ADMIN) {
+      const calls = await prisma.homeCall.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+      res.json(calls);
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: { fullName: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ message: "Пользователь не найден" });
+      return;
+    }
+
+    const calls = await prisma.homeCall.findMany({
+      where: { fullName: user.fullName },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(calls);
   }),
 );
 
@@ -711,47 +915,69 @@ router.post(
       time: string;
     };
 
-    const html = `
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <title>Талон вызова врача</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 40px;
+    if (
+      !data.fullName ||
+      !data.phone ||
+      !data.address ||
+      !data.doctor ||
+      !data.date ||
+      !data.time
+    ) {
+      res.status(400).json({ message: "Не все поля заполнены" });
+      return;
     }
-    h1 {
-      text-align: center;
+
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([595, 842]);
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+    page.drawText("Талон вызова врача на дом", {
+      x: 50,
+      y: 780,
+      size: 20,
+      font: boldFont,
+      color: rgb(0.07, 0.13, 0.22),
+    });
+
+    const lines = [
+      `Пациент: ${data.fullName}`,
+      `Телефон: ${data.phone}`,
+      `Адрес: ${data.address}`,
+      "",
+      `Специальность врача: ${data.doctor}`,
+      `Дата: ${data.date}`,
+      `Время: ${data.time}`,
+    ];
+
+    let y = 730;
+    for (const line of lines) {
+      page.drawText(line, {
+        x: 50,
+        y,
+        size: 13,
+        font,
+        color: rgb(0.15, 0.19, 0.24),
+      });
+      y -= 28;
     }
-    .row {
-      margin-bottom: 10px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Талон вызова врача</h1>
 
-  <div class="row"><b>Пациент:</b> ${data.fullName}</div>
-  <div class="row"><b>Телефон:</b> ${data.phone}</div>
-  <div class="row"><b>Адрес:</b> ${data.address}</div>
+    page.drawText("Поликлиника №26", {
+      x: 50,
+      y: 90,
+      size: 12,
+      font: boldFont,
+      color: rgb(0.07, 0.13, 0.22),
+    });
 
-  <hr />
+    const pdfBytes = await pdf.save();
 
-  <div class="row"><b>Врач:</b> ${data.doctor}</div>
-  <div class="row"><b>Дата:</b> ${data.date}</div>
-  <div class="row"><b>Время:</b> ${data.time}</div>
-
-  <script>
-    window.onload = () => window.print();
-  </script>
-</body>
-</html>
-`;
-
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.send(html);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="home-call-ticket.pdf"',
+    );
+    res.send(Buffer.from(pdfBytes));
   }),
 );
 

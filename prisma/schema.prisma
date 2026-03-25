@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum DoctorCategory {
+  HIGHEST
+  FIRST
+  SECOND
+}
+
+enum PharmacyOrderStatus {
+  CREATED
+  PROCESSING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PharmacyReviewModeration {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  email    String @unique
+  password String
+  fullName String @map("full_name")
+  role     Role   @default(PATIENT)
+
+  feedbacks       Feedback[]
+  patient         Patient?
+  doctor          Doctor?
+  pharmacyOrders  PharmacyOrder[]
+  pharmacyReviews PharmacyReview[]
+
+  @@map("user")
+}
+
+model Patient {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  phone     String?
+  birthDate DateTime? @map("birth_date")
+
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  appointments Appointment[]
+
+  @@map("patient")
+}
+
+model Specialty {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  name String
+
+  doctorSpecialties DoctorSpecialty[]
+
+  @@map("specialty")
+}
+
+model DoctorSpecialty {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  specialtyId Int       @map("specialty_id")
+  doctor      Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  doctorId    Int       @map("doctor_id")
+
+  @@map("doctor_specialty")
+}
+
+model Doctor {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  category   DoctorCategory @default(SECOND)
+  room       Int
+  experience Int            @default(0)
+
+  doctorSpecialties DoctorSpecialty[]
+  schedules         Schedule[]
+  appointments      Appointment[]
+
+  @@map("doctor")
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  startDateTime DateTime @map("start_date_time")
+  endDateTime   DateTime @map("end_date_time")
+
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  doctorId Int    @map("doctor_id")
+
+  appointments Appointment[]
+
+  @@map("schedule")
+}
+
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  status AppointmentStatus @default(PENDING)
+
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  patientId  Int      @map("patient_id")
+  doctor     Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  doctorId   Int      @map("doctor_id")
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  scheduleId Int      @map("schedule_id")
+
+  @@map("appointment")
+}
+
+model HomeCall {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  fullName String @map("full_name")
+  phone    String
+  address  String
+  doctor   String
+  date     String
+  time     String
+
+  status AppointmentStatus @default(PENDING)
+
+  @@map("home_call")
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  name    String
+  email   String
+  subject String
+  message String
+
+  isRead Boolean @default(false)
+
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  userId Int?  @map("user_id")
+
+  @@map("feedback")
+}
+
+model HomeCallSlot {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  date     String
+  time     String
+  isActive Boolean @default(true)
+
+  @@map("home_call_slot")
+}
+
+model PharmacyProduct {
+  id                   Int      @id @default(autoincrement())
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+  name                 String
+  form                 String
+  manufacturer         String
+  category             String
+  price                Decimal  @db.Decimal(10, 2)
+  stock                Int      @default(0)
+  isActive             Boolean  @default(true) @map("is_active")
+  requiresPrescription Boolean  @default(false) @map("requires_prescription")
+
+  orderItems PharmacyOrderItem[]
+
+  @@map("pharmacy_product")
+}
+
+model PharmacyOrder {
+  id        Int                 @id @default(autoincrement())
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @default(now()) @updatedAt @map("updated_at")
+  status    PharmacyOrderStatus @default(CREATED)
+  address   String
+  phone     String
+  comment   String              @default("")
+  total     Decimal             @db.Decimal(10, 2)
+
+  userId   Int?    @map("user_id")
+  userName String? @map("user_name")
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  items PharmacyOrderItem[]
+
+  @@map("pharmacy_order")
+}
+
+model PharmacyOrderItem {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  name      String
+  form      String
+  price     Decimal  @db.Decimal(10, 2)
+  qty       Int
+  lineTotal Decimal  @map("line_total") @db.Decimal(10, 2)
+
+  orderId Int           @map("order_id")
+  order   PharmacyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  productId Int             @map("product_id")
+  product   PharmacyProduct @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("pharmacy_order_item")
+}
+
+model PharmacyReview {
+  id               Int                      @id @default(autoincrement())
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @default(now()) @updatedAt @map("updated_at")
+  userName         String                   @map("user_name")
+  rating           Int
+  title            String
+  text             String
+  tags             String[]
+  moderationStatus PharmacyReviewModeration @default(PENDING) @map("moderation_status")
+  isPublished      Boolean                  @default(false) @map("is_published")
+
+  userId Int?  @map("user_id")
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("pharmacy_review")
+}
