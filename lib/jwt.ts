@@ -1,6 +1,6 @@
 import { jwtDecode } from "jwt-decode";
-import { Role, User } from "./generated/prisma";
 import jwt from "jsonwebtoken";
+import type { Role } from "./types";
 
 type JwtPayload = {
   user: JwtUser;
@@ -13,9 +13,16 @@ export type JwtUser = {
   role: Role;
 };
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret";
 
-export function generateJwt(user: User): string {
+type JwtSourceUser = {
+  id: number;
+  email: string;
+  fullName: string;
+  role: Role;
+};
+
+export function generateJwt(user: JwtSourceUser): string {
   const payload: JwtPayload = {
     user: {
       id: user.id,

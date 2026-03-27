@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DoctorCategory, Role } from "@/lib/generated/prisma";
+import { ROLES, type DoctorCategory } from "@/lib/types";
 import bcrypt from "bcrypt";
 
 /* =====================
@@ -8,7 +8,7 @@ import bcrypt from "bcrypt";
 ===================== */
 export async function GET(req: NextRequest) {
   const { search, specialty, category, quickFilter } = Object.fromEntries(
-    req.nextUrl.searchParams
+    req.nextUrl.searchParams,
   );
 
   const doctors = await prisma.doctor.findMany({
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   if (existingUser) {
     return NextResponse.json(
       { message: "Пользователь с таким email уже существует" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         email,
         password: hashedPassword,
         fullName,
-        role: Role.DOCTOR,
+        role: ROLES.DOCTOR,
       },
     });
 

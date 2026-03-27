@@ -1,11 +1,13 @@
 import { checkRoles } from "@/lib/auth";
-import { Role } from "@/lib/generated/prisma";
 import prisma from "@/lib/prisma";
+import { ROLES } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function POST(req: NextRequest, { params }: any) {
-  const res = checkRoles(req, [Role.ADMIN]);
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const res = checkRoles(req, [ROLES.ADMIN]);
   if (res) {
     return NextResponse.json({ message: res.message }, { status: res.status });
   }

@@ -85,7 +85,9 @@ export async function GET(req: Request) {
     if (!map.has(d.id)) {
       map.set(d.id, {
         name: d.user.fullName,
-        specialties: d.doctorSpecialties.map((ds) => ds.specialty.name),
+        specialties: d.doctorSpecialties.map(
+          (ds: { specialty: { name: string } }) => ds.specialty.name,
+        ),
         room: d.room,
         days: new Set<string>(),
         times: [],

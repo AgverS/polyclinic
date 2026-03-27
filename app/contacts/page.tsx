@@ -1,231 +1,218 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
+type FormState = {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+};
+
+const INITIAL_FORM: FormState = {
+  name: "",
+  email: "",
+  subject: "",
+  message: "",
+};
+
 export default function ContactsPage() {
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState<{
+    type: "idle" | "success" | "error";
+    message: string;
+  }>({
+    type: "idle",
+    message: "",
+  });
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const payload = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(payload.message || "Не удалось отправить сообщение");
+      }
+
+      setForm(INITIAL_FORM);
+      setStatus({
+        type: "success",
+        message: payload.message || "Сообщение отправлено",
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Не удалось отправить сообщение",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   return (
-    <main className="bg-slate-900 text-white min-h-screen">
-      <ContactsHero />
+    <main className="min-h-screen bg-slate-950 text-white">
+      <section className="mx-auto max-w-6xl px-6 py-14">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(145deg,rgba(14,23,48,0.96),rgba(20,35,72,0.92))] p-8 shadow-2xl shadow-slate-950/30">
+            <div className="inline-flex rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+              Контакты поликлиники
+            </div>
+            <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+              Свяжитесь с регистратурой или оставьте сообщение
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+              Здесь собраны основные контакты, часы работы и форма обратной
+              связи для пациентов.
+            </p>
 
-      <section className="max-w-7xl mx-auto px-6 py-16 space-y-16">
-        <div className="grid lg:grid-cols-2 gap-8">
-          <ContactsInfo />
-          <ContactsMap />
-        </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <InfoCard
+                label="Адрес"
+                value="г. Минск, ул. Колесникова 3"
+              />
+              <InfoCard label="Телефон" value="+375-25-751-77-10" />
+              <InfoCard label="Email" value="info26@gmail.com" />
+              <InfoCard label="Часы работы" value="Пн–Пт 8:00–20:00, Сб 9:00–15:00" />
+            </div>
 
-        <EmergencyBlock />
-        <FeedbackForm />
+            <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-white/10">
+              <iframe
+                title="map"
+                src="https://www.google.com/maps?q=Минск,+ул.+Колесникова+3&output=embed"
+                className="h-[320px] w-full border-0"
+                loading="eager"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
 
-        <div className="text-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 border border-white/20 px-6 py-3 rounded-lg hover:bg-white/10 transition"
-          >
-            ← Вернуться на главную
-          </Link>
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-slate-950 shadow-xl shadow-slate-200/70">
+            <h2 className="text-2xl font-semibold">Обратная связь</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Сообщение попадет в систему обращений. Все поля обязательны.
+            </p>
+
+            <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+              <Field
+                label="Имя"
+                value={form.name}
+                onChange={(value) => updateField("name", value)}
+                placeholder="Ваше имя"
+              />
+              <Field
+                label="Email"
+                value={form.email}
+                onChange={(value) => updateField("email", value)}
+                placeholder="example@mail.com"
+                type="email"
+              />
+              <Field
+                label="Тема"
+                value={form.subject}
+                onChange={(value) => updateField("subject", value)}
+                placeholder="Тема обращения"
+              />
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  Сообщение
+                </span>
+                <textarea
+                  required
+                  value={form.message}
+                  onChange={(event) =>
+                    updateField("message", event.target.value)
+                  }
+                  placeholder="Опишите вопрос или проблему"
+                  className="min-h-36 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
+                />
+              </label>
+
+              {status.type !== "idle" ? (
+                <div
+                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                    status.type === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-600"
+                  }`}
+                >
+                  {status.message}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="h-12 w-full rounded-2xl bg-slate-950 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {submitting ? "Отправляем..." : "Отправить сообщение"}
+              </button>
+            </form>
+          </div>
         </div>
       </section>
     </main>
   );
 }
 
-/* ---------- HERO ---------- */
-
-function ContactsHero() {
+function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <section className="h-65 bg-linear-to-r from-indigo-900 to-blue-900 flex items-center justify-center">
-      <div className="text-center px-6">
-        <h1 className="text-4xl font-bold mb-3">Контактная информация</h1>
-        <p className="text-gray-200 max-w-3xl">
-          Свяжитесь с нами удобным для вас способом. Мы всегда готовы помочь.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-/* ---------- INFO ---------- */
-
-function ContactsInfo() {
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-8 space-y-6">
-      <h2 className="text-2xl font-bold">Основная информация</h2>
-
-      <div className="space-y-4 text-gray-300">
-        <p>
-          📍 <strong>Адрес:</strong> г. Минск, ул. Колесникова 3
-        </p>
-        <p>
-          📞 <strong>Справочная:</strong> +375-44-512-22-79
-        </p>
-        <p>
-          ☎️ <strong>Регистратура:</strong> +375-44-512-22-79
-        </p>
-        <p>
-          ✉️ <strong>Email:</strong> info26@gmail.com
-        </p>
-      </div>
-
-      <div className="pt-6 border-t border-white/10">
-        <h3 className="font-semibold mb-3">Часы работы</h3>
-        <div className="space-y-2 text-gray-300 text-sm">
-          <div className="flex justify-between">
-            <span>Пн–Пт</span>
-            <span>08:00 – 20:00</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Суббота</span>
-            <span>09:00 – 15:00</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Воскресенье</span>
-            <span>Выходной</span>
-          </div>
-        </div>
-      </div>
+    <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-5">
+      <div className="text-sm text-slate-400">{label}</div>
+      <div className="mt-2 text-lg font-medium text-white">{value}</div>
     </div>
   );
 }
 
-/* ---------- MAP ---------- */
-
-function ContactsMap() {
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: "text" | "email";
+}) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl min-h-95 flex items-center justify-center text-gray-400">
-      <iframe
-        title="map"
-        src="https://www.google.com/maps?q=Минск,+ул.+Колесникова+3&output=embed"
-        className="w-full h-full border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-slate-700">
+        {label}
+      </span>
+      <input
+        required
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-cyan-400 focus:bg-white"
       />
-    </div>
-  );
-}
-
-/* ---------- EMERGENCY ---------- */
-
-function EmergencyBlock() {
-  return (
-    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
-      <h3 className="text-red-400 font-bold mb-2">🚨 Неотложная помощь</h3>
-      <p className="text-gray-300">
-        В экстренных случаях звоните по номеру{" "}
-        <strong className="text-white">103</strong>
-      </p>
-    </div>
-  );
-}
-
-/* ---------- FEEDBACK FORM ---------- */
-
-function FeedbackForm() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    setLoading(true);
-    setSuccess(false);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, subject, message }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Ошибка отправки");
-      }
-
-      setSuccess(true);
-      setName("");
-      setEmail("");
-      setSubject("");
-      setMessage("");
-
-      setTimeout(() => setSuccess(false), 4000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(err.message || "Ошибка сервера");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-8">
-      <h2 className="text-2xl font-bold mb-6 text-center">Обратная связь</h2>
-
-      <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-6">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Ваше имя"
-          required
-          className="bg-white/10 border border-white/20 rounded-lg px-4 py-3"
-        />
-
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-          className="bg-white/10 border border-white/20 rounded-lg px-4 py-3"
-        />
-
-        <input
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Тема сообщения"
-          required
-          className="md:col-span-2 bg-white/10 border border-white/20 rounded-lg px-4 py-3"
-        />
-
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Ваше сообщение"
-          rows={4}
-          required
-          className="md:col-span-2 bg-white/10 border border-white/20 rounded-lg px-4 py-3 resize-none"
-        />
-
-        <div className="md:col-span-2 text-center">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-8 py-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Отправка..." : "Отправить сообщение"}
-          </button>
-        </div>
-
-        {success && (
-          <div className="md:col-span-2 text-center text-green-400 bg-green-500/10 border border-green-500/30 rounded-lg py-3">
-            ✅ Сообщение отправлено. Мы свяжемся с вами по почте.
-          </div>
-        )}
-
-        {error && (
-          <div className="md:col-span-2 text-center text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg py-3">
-            ❌ {error}
-          </div>
-        )}
-      </form>
-    </div>
+    </label>
   );
 }

@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   if (!Number.isInteger(doctorId)) {
     return NextResponse.json(
       { error: "doctorId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   if (!Number.isInteger(doctorId) || !Array.isArray(slots)) {
     return NextResponse.json(
       { error: "doctorId and slots are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { message: "Все поля обязательны" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         success: true,
         message: "Сообщение отправлено",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("FEEDBACK ERROR:", error);

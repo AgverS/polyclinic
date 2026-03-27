@@ -13,7 +13,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    specialties: specialties.map((s) => s.name),
+    specialties: specialties.map((s: { name: string }) => s.name),
     slots,
   });
 }

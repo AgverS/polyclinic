@@ -1,249 +1,171 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useMemo, useState } from "react";
+import {
+  getPharmacyCartCount,
+  getPharmacyCartTotal,
+  readPharmacyCart,
+  removeFromPharmacyCart,
+  type PharmacyCartItem,
+  updatePharmacyCartQty,
+} from "@/lib/pharmacy-cart";
 
-type Medicine = {
-  id: number;
-  name: string;
-  form: string;
-  price: number;
-  available?: boolean;
-  manufacturer?: string;
-  rating?: number;
-  reviews?: number;
-};
-
-type CartEntry = { item: Medicine; qty: number };
-type Cart = Record<string, CartEntry>;
-
-function safeJsonParse<T>(raw: string | null, fallback: T): T {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+function formatBYN(value: number) {
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency: "BYN",
+    minimumFractionDigits: 2,
+  }).format(value);
 }
 
-function readCart(): Cart {
-  if (typeof window === "undefined") return {};
-  const parsed = safeJsonParse<Cart>(localStorage.getItem("cart_v2"), {});
-  if (!parsed || typeof parsed !== "object") return {};
-  return parsed;
-}
-
-function writeCart(cart: Cart) {
-  localStorage.setItem("cart_v2", JSON.stringify(cart));
-}
-
-function cartToList(cart: Cart) {
-  return Object.values(cart)
-    .filter((e) => e && e.item && typeof e.qty === "number")
-    .map((e) => e);
-}
-
-export default function CartPage() {
-  const [cart, setCart] = useState<Cart>({});
-  const [wait, setWait] = useState<Medicine[]>([]);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-    if (typeof window === "undefined") return;
-
-    setCart(readCart());
-    setWait(safeJsonParse<Medicine[]>(localStorage.getItem("wait"), []));
-  }, []);
-
-  const list = useMemo(() => cartToList(cart), [cart]);
-
-  const totalQty = useMemo(
-    () => list.reduce((s, e) => s + (e.qty ?? 0), 0),
-    [list],
+export default function PharmacyCartPage() {
+  const [cart, setCart] = useState<PharmacyCartItem[]>(() =>
+    typeof window === "undefined" ? [] : readPharmacyCart(),
   );
 
-  const total = useMemo(
-    () => list.reduce((s, e) => s + (e.item.price ?? 0) * (e.qty ?? 0), 0),
-    [list],
-  );
-
-  if (!mounted) return null;
-
-  function updateCart(next: Cart) {
-    setCart(next);
-    writeCart(next);
-  }
-
-  function changeQty(id: number, delta: number) {
-    const key = String(id);
-    const current = cart[key];
-    if (!current) return;
-
-    const nextQty = (current.qty ?? 0) + delta;
-    const next = { ...cart };
-
-    if (nextQty <= 0) {
-      delete next[key];
-    } else {
-      next[key] = { ...current, qty: nextQty };
-    }
-
-    updateCart(next);
-  }
-
-  function removeFromCart(id: number) {
-    const key = String(id);
-    if (!cart[key]) return;
-    const next = { ...cart };
-    delete next[key];
-    updateCart(next);
-  }
-
-  function clearCart() {
-    updateCart({});
-  }
-
-  function removeFromWait(id: number) {
-    const updated = wait.filter((i) => i.id !== id);
-    setWait(updated);
-    localStorage.setItem("wait", JSON.stringify(updated));
-  }
+  const total = useMemo(() => getPharmacyCartTotal(cart), [cart]);
+  const count = useMemo(() => getPharmacyCartCount(cart), [cart]);
 
   return (
-    <div className="min-h-screen bg-[#F6F7FB]">
-      <div className="max-w-5xl mx-auto px-8 pt-24 pb-40">
-        {/* BACK */}
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <Link
-            href="/pharmacy"
-            className="inline-block text-indigo-600 hover:underline"
-          >
-            ← Вернуться в каталог
-          </Link>
-
-          {list.length > 0 && (
-            <button
-              onClick={clearCart}
-              className="text-sm text-red-500 hover:underline"
-            >
-              Очистить корзину
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-end justify-between gap-6 mb-8">
-          <h1 className="text-3xl font-semibold text-[#111827]">Корзина</h1>
-          {list.length > 0 && (
-            <div className="text-sm text-[#6B7280]">
-              Товаров:{" "}
-              <span className="text-[#111827] font-medium">{totalQty}</span>
+    <main className="min-h-screen bg-[linear-gradient(180deg,#09101F_0%,#101A33_36%,#F4F7FB_36%,#F7F9FC_100%)] px-6 py-12">
+      <div className="mx-auto max-w-6xl">
+        <div className="rounded-[2rem] border border-white/10 bg-[#0F1A34]/92 p-8 text-white shadow-2xl shadow-slate-950/20">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-sm uppercase tracking-[0.3em] text-cyan-200/80">
+                Корзина аптеки
+              </div>
+              <h1 className="mt-3 text-4xl font-semibold">Подготовка заказа</h1>
+              <p className="mt-3 max-w-2xl text-slate-300">
+                Проверьте состав корзины и перейдите к оформлению заказа.
+              </p>
             </div>
-          )}
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-right">
+              <div className="text-sm text-slate-300">Товаров</div>
+              <div className="mt-1 text-3xl font-semibold">{count}</div>
+            </div>
+          </div>
         </div>
 
-        {/* CART */}
-        {list.length === 0 ? (
-          <p className="text-[#6B7280]">Корзина пуста</p>
-        ) : (
-          <div className="space-y-4">
-            {list.map(({ item, qty }) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl border border-black/5 p-4 flex items-center justify-between"
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-slate-950">Товары</h2>
+              <Link
+                href="/pharmacy"
+                className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:border-cyan-400 hover:text-slate-950"
               >
-                <div>
-                  <div className="font-medium text-[#111827]">{item.name}</div>
-                  <div className="text-sm text-[#6B7280]">{item.form}</div>
-                </div>
+                Вернуться в каталог
+              </Link>
+            </div>
 
-                <div className="flex items-center gap-6">
-                  {/* QTY */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => changeQty(item.id, -1)}
-                      className="h-8 w-8 rounded-lg border text-lg"
-                      aria-label="Уменьшить количество"
-                    >
-                      −
-                    </button>
-                    <span className="w-8 text-center">{qty}</span>
-                    <button
-                      onClick={() => changeQty(item.id, 1)}
-                      className="h-8 w-8 rounded-lg border text-lg"
-                      aria-label="Увеличить количество"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* PRICE */}
-                  <div className="w-28 text-right font-semibold">
-                    {(item.price * qty).toFixed(2)} BYN
-                  </div>
-
-                  {/* REMOVE */}
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    className="text-sm text-red-500 hover:underline"
+            {cart.length === 0 ? (
+              <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
+                Корзина пока пустая.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {cart.map((item) => (
+                  <article
+                    key={item.id}
+                    className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5"
                   >
-                    Удалить
-                  </button>
-                </div>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-950">
+                          {item.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {item.form}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Остаток: {item.stock}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setCart(removeFromPharmacyCart(item.id))}
+                        className="rounded-full border border-rose-200 px-4 py-2 text-sm text-rose-600 transition hover:bg-rose-50"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+                      <div className="inline-flex items-center overflow-hidden rounded-full border border-slate-200 bg-white">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCart(
+                              updatePharmacyCartQty(item.id, item.qty - 1),
+                            )
+                          }
+                          className="h-11 w-11 text-lg text-slate-700 transition hover:bg-slate-50"
+                        >
+                          -
+                        </button>
+                        <div className="flex min-w-14 justify-center text-sm font-semibold text-slate-950">
+                          {item.qty}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCart(
+                              updatePharmacyCartQty(item.id, item.qty + 1),
+                            )
+                          }
+                          disabled={item.qty >= item.stock}
+                          className="h-11 w-11 text-lg text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-sm text-slate-500">
+                          {formatBYN(item.price)} / шт
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-slate-950">
+                          {formatBYN(item.price * item.qty)}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+          </section>
 
-        {/* WAIT LIST */}
-        <h2 className="text-2xl font-semibold text-[#111827] mt-16 mb-4">
-          Лист ожидания
-        </h2>
+          <aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70">
+            <h2 className="text-xl font-semibold text-slate-950">Итог</h2>
 
-        {wait.length === 0 ? (
-          <p className="text-[#6B7280]">Лист ожидания пуст</p>
-        ) : (
-          <div className="space-y-4">
-            {wait.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl border border-black/5 p-4 flex justify-between"
-              >
-                <div>
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-sm text-[#6B7280]">{item.form}</div>
-                </div>
-
-                <button
-                  onClick={() => removeFromWait(item.id)}
-                  className="text-sm text-red-500 hover:underline"
-                >
-                  Удалить
-                </button>
+            <div className="mt-5 rounded-[1.5rem] bg-slate-50 p-5">
+              <div className="flex items-center justify-between text-sm text-slate-500">
+                <span>Позиций</span>
+                <span>{count}</span>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* SUMMARY */}
-      {list.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-black/10">
-          <div className="max-w-5xl mx-auto px-8 h-20 flex items-center justify-between">
-            <div className="text-lg font-semibold">
-              Итого: {total.toFixed(2)} BYN
+              <div className="mt-3 flex items-center justify-between text-lg font-semibold text-slate-950">
+                <span>Итого</span>
+                <span>{formatBYN(total)}</span>
+              </div>
             </div>
 
             <Link
-              href="/pharmacy/checkout"
-              className="h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center"
+              href={cart.length > 0 ? "/pharmacy/checkout" : "/pharmacy"}
+              className={`mt-6 flex h-12 items-center justify-center rounded-[14px] font-medium ${
+                cart.length > 0
+                  ? "bg-cyan-400 text-slate-950 transition hover:bg-cyan-300"
+                  : "bg-slate-200 text-slate-500"
+              }`}
             >
-              Оформить заказ
+              {cart.length > 0 ? "Перейти к оформлению" : "Перейти в каталог"}
             </Link>
-          </div>
+          </aside>
         </div>
-      )}
-    </div>
+      </div>
+    </main>
   );
 }

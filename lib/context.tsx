@@ -1,11 +1,10 @@
 "use client";
 
-import { User } from "@/lib/generated/prisma";
-import { createContext, useEffect, useContext, useState } from "react";
-import { decodeUserFromToken } from "./jwt";
+import { createContext, useContext, useState } from "react";
+import { decodeUserFromToken, type JwtUser } from "./jwt";
 
 type AuthContextType = {
-  user: User | null;
+  user: JwtUser | null;
   login: (token: string) => void;
   logout: () => void;
 };
@@ -13,7 +12,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
+  const [user, setUser] = useState<JwtUser | null>(() => {
     if (typeof window === "undefined") return null;
 
     const token = localStorage.getItem("token");

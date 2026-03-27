@@ -1,50 +1,79 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export async function POST(req: NextRequest) {
-  const data = await req.json();
+  const body = (await req.json()) as {
+    fullName?: string;
+    phone?: string;
+    address?: string;
+    doctor?: string;
+    date?: string;
+    time?: string;
+  };
 
-  const html = `
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <title>Талон вызова врача</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 40px;
-    }
-    h1 {
-      text-align: center;
-    }
-    .row {
-      margin-bottom: 10px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Талон вызова врача</h1>
+  const fullName = String(body.fullName ?? "").trim();
+  const phone = String(body.phone ?? "").trim();
+  const address = String(body.address ?? "").trim();
+  const doctor = String(body.doctor ?? "").trim();
+  const date = String(body.date ?? "").trim();
+  const time = String(body.time ?? "").trim();
 
-  <div class="row"><b>Пациент:</b> ${data.fullName}</div>
-  <div class="row"><b>Телефон:</b> ${data.phone}</div>
-  <div class="row"><b>Адрес:</b> ${data.address}</div>
+  if (!fullName || !phone || !address || !doctor || !date || !time) {
+    return NextResponse.json(
+      { message: "Не все поля заполнены" },
+      { status: 400 },
+    );
+  }
 
-  <hr />
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  <div class="row"><b>Врач:</b> ${data.doctor}</div>
-  <div class="row"><b>Дата:</b> ${data.date}</div>
-  <div class="row"><b>Время:</b> ${data.time}</div>
+  page.drawText("Талон вызова врача на дом", {
+    x: 50,
+    y: 780,
+    size: 20,
+    font: boldFont,
+    color: rgb(0.07, 0.13, 0.22),
+  });
 
-  <script>
-    window.onload = () => window.print();
-  </script>
-</body>
-</html>
-`;
+  const lines = [
+    `Пациент: ${fullName}`,
+    `Телефон: ${phone}`,
+    `Адрес: ${address}`,
+    "",
+    `Специальность врача: ${doctor}`,
+    `Дата: ${date}`,
+    `Время: ${time}`,
+  ];
 
-  return new Response(html, {
+  let y = 730;
+  for (const line of lines) {
+    page.drawText(line, {
+      x: 50,
+      y,
+      size: 13,
+      font,
+      color: rgb(0.15, 0.19, 0.24),
+    });
+    y -= 28;
+  }
+
+  page.drawText("Поликлиника №26", {
+    x: 50,
+    y: 90,
+    size: 12,
+    font: boldFont,
+    color: rgb(0.07, 0.13, 0.22),
+  });
+
+  const bytes = await pdf.save();
+
+  return new NextResponse(Buffer.from(bytes), {
     headers: {
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": "application/pdf",
+      "Content-Disposition": 'attachment; filename="home-call-ticket.pdf"',
     },
   });
 }

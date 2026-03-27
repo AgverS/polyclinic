@@ -26,6 +26,20 @@ enum DoctorCategory {
   SECOND
 }
 
+enum PharmacyOrderStatus {
+  CREATED
+  PROCESSING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PharmacyReviewModeration {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
@@ -36,9 +50,11 @@ model User {
   fullName String @map("full_name")
   role     Role   @default(PATIENT)
 
-  feedbacks Feedback[]
-  patient   Patient?
-  doctor    Doctor?
+  feedbacks       Feedback[]
+  patient         Patient?
+  doctor          Doctor?
+  pharmacyOrders  PharmacyOrder[]
+  pharmacyReviews PharmacyReview[]
 
   @@map("user")
 }
@@ -181,4 +197,78 @@ model HomeCallSlot {
   isActive Boolean @default(true)
 
   @@map("home_call_slot")
+}
+
+model PharmacyProduct {
+  id                   Int      @id @default(autoincrement())
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+  name                 String
+  form                 String
+  manufacturer         String
+  category             String
+  price                Decimal  @db.Decimal(10, 2)
+  stock                Int      @default(0)
+  isActive             Boolean  @default(true) @map("is_active")
+  requiresPrescription Boolean  @default(false) @map("requires_prescription")
+
+  orderItems PharmacyOrderItem[]
+
+  @@map("pharmacy_product")
+}
+
+model PharmacyOrder {
+  id        Int                 @id @default(autoincrement())
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @default(now()) @updatedAt @map("updated_at")
+  status    PharmacyOrderStatus @default(CREATED)
+  address   String
+  phone     String
+  comment   String              @default("")
+  total     Decimal             @db.Decimal(10, 2)
+
+  userId   Int?    @map("user_id")
+  userName String? @map("user_name")
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  items PharmacyOrderItem[]
+
+  @@map("pharmacy_order")
+}
+
+model PharmacyOrderItem {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  name      String
+  form      String
+  price     Decimal  @db.Decimal(10, 2)
+  qty       Int
+  lineTotal Decimal  @map("line_total") @db.Decimal(10, 2)
+
+  orderId Int           @map("order_id")
+  order   PharmacyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  productId Int             @map("product_id")
+  product   PharmacyProduct @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("pharmacy_order_item")
+}
+
+model PharmacyReview {
+  id               Int                      @id @default(autoincrement())
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @default(now()) @updatedAt @map("updated_at")
+  userName         String                   @map("user_name")
+  rating           Int
+  title            String
+  text             String
+  tags             String[]
+  moderationStatus PharmacyReviewModeration @default(PENDING) @map("moderation_status")
+  isPublished      Boolean                  @default(false) @map("is_published")
+
+  userId Int?  @map("user_id")
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("pharmacy_review")
 }

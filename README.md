@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Polyclinic
 
-## Getting Started
+Проект поликлиники на `Next.js + React` (клиентский фронт) и `Express + TypeScript` (бэкенд).
 
-First, run the development server:
+## Review flow
+
+Обязательный процесс ревью:
+
+1. При старте проекта создаётся отдельная пустая ветка `review`.
+2. После завершения работ создаётся PR из `main` в `review`.
+3. PR не закрывается: в нём собираются комментарии ревью.
+
+## Stack
+
+- Frontend: `Next.js`, `React`, `TypeScript`.
+- Backend API: `Express`, `TypeScript`, `Prisma`, `PostgreSQL`.
+- Auth: JWT.
+- Code quality: `ESLint` + `Prettier`.
+
+## Scripts
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev           # Express + Next (единый сервер)
+npm run dev:next      # только Next dev server
+npm run build         # production build Next
+npm run start         # Express + Next в production режиме
+npm run lint          # eslint
+npm run format        # prettier --write
+npm run format:check  # prettier --check
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Скопируйте `.env.example` в `.env` и при необходимости измените значения:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env
+```
 
-## Learn More
+Для локальной БД:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker compose up -d postgres
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Бэкенд API обслуживается через Express роутер `server/api-router.ts` и доступен по префиксу `/api/*`.
 
-## Deploy on Vercel
+Диагностический эндпоинт состояния:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/health` -> проверка доступности API и подключения к БД.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+
+- Фронт формируется на клиенте и получает данные через API.
+- Конфигурация форматирования: `.prettierrc.json`.
+- Игнорируемые для форматирования файлы: `.prettierignore`.

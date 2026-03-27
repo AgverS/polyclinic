@@ -1,12 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { requireRole } from "@/lib/auth";
-import { Role } from "@/lib/generated/prisma";
+import { getUserFromRequest } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { ROLES } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const userId = Number(id);
@@ -22,43 +21,72 @@ export async function GET(
   if (!user) {
     return NextResponse.json(
       { message: "Пользователь не найден" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
-  const { password: _, ...safeUser } = user;
-
-  return NextResponse.json(safeUser);
+  return NextResponse.json({
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(req: NextRequest, { params }: any) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const session = (req as any).user;
-  const id = Number(params.id);
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = getUserFromRequest(req);
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
-  if (session.role !== Role.ADMIN && session.id !== id) {
-    throw new Error("Forbidden");
+  const { id } = await params;
+  const userId = Number(id);
+
+  if (!Number.isInteger(userId)) {
+    return NextResponse.json({ message: "Некорректный id" }, { status: 400 });
+  }
+
+  if (session.role !== ROLES.ADMIN && session.id !== userId) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const data = await req.json();
 
   const user = await prisma.user.update({
-    where: { id },
+    where: { id: userId },
     data,
   });
 
   return NextResponse.json(user);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(req: NextRequest, { params }: any) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const session = (req as any).user;
-  requireRole(session, [Role.ADMIN]);
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = getUserFromRequest(req);
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== ROLES.ADMIN) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const userId = Number(id);
+
+  if (!Number.isInteger(userId)) {
+    return NextResponse.json({ message: "Некорректный id" }, { status: 400 });
+  }
 
   await prisma.user.delete({
-    where: { id: Number(params.id) },
+    where: { id: userId },
   });
 
   return NextResponse.json({ ok: true });

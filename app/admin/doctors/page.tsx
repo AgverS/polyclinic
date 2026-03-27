@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Select from "@/components/ui/select";
 import Input from "@/components/ui/input";
-import { Specialty } from "@/lib/generated/prisma";
-import { FullDoctor } from "@/lib/types";
-
-/* =====================
-   TYPES
-===================== */
+import type { FullDoctor, SpecialtyModel } from "@/lib/types";
 
 type FormSchema = {
   fullName: string;
@@ -30,22 +25,14 @@ const emptyForm: FormSchema = {
   password: "",
 };
 
-/* =====================
-   PAGE
-===================== */
-
 export default function AdminDoctorsPage() {
   const router = useRouter();
 
   const [doctors, setDoctors] = useState<FullDoctor[]>([]);
-  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [specialties, setSpecialties] = useState<SpecialtyModel[]>([]);
   const [form, setForm] = useState<FormSchema>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-
-  /* =====================
-     LOAD DATA (FIXED)
-  ===================== */
 
   useEffect(() => {
     let mounted = true;
@@ -71,10 +58,6 @@ export default function AdminDoctorsPage() {
     };
   }, []);
 
-  /* =====================
-     HELPERS
-  ===================== */
-
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
@@ -91,9 +74,10 @@ export default function AdminDoctorsPage() {
     );
   }
 
-  /* =====================
-     ACTIONS
-  ===================== */
+  async function reloadDoctors() {
+    const res = await axios.get("/api/doctors");
+    setDoctors(res.data);
+  }
 
   async function submitForm() {
     if (!isFormValid()) {
@@ -107,8 +91,7 @@ export default function AdminDoctorsPage() {
       await axios.post("/api/doctors", form);
     }
 
-    const res = await axios.get("/api/doctors");
-    setDoctors(res.data);
+    await reloadDoctors();
     resetForm();
   }
 
@@ -132,156 +115,151 @@ export default function AdminDoctorsPage() {
   async function deleteDoctor(id: number) {
     if (!confirm("Удалить врача?")) return;
     await axios.delete("/api/doctors", { data: { id } });
-    const res = await axios.get("/api/doctors");
-    setDoctors(res.data);
+    await reloadDoctors();
   }
 
   function goToSchedule(id: number) {
     router.push(`/admin/schedule?doctorId=${id}`);
   }
 
-  /* =====================
-     RENDER
-  ===================== */
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white p-10">
-        Загрузка...
-      </div>
+      <main className="clinic-shell px-6 py-12 sm:px-8">
+        <div className="mx-auto max-w-6xl rounded-[2rem] bg-white/70 p-8 text-slate-600 shadow-xl">
+          Загрузка...
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-10 space-y-10">
-      <h1 className="text-3xl font-bold">Управление врачами</h1>
+    <main className="clinic-shell">
+      <section className="mx-auto max-w-7xl px-6 py-12 sm:px-8 space-y-8">
+        <div className="clinic-hero rounded-[2rem] p-8 text-white sm:p-10">
+          <div className="clinic-kicker">Админка · врачи</div>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
+            Управление врачами
+          </h1>
+        </div>
 
-      {/* FORM */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 max-w-5xl">
-        <h2 className="text-2xl font-semibold mb-6">
-          {editingId ? "Редактировать врача" : "Добавить врача"}
-        </h2>
+        <div className="clinic-surface rounded-[2rem] p-8 max-w-6xl">
+          <h2 className="mb-6 text-2xl font-semibold text-slate-950">
+            {editingId ? "Редактировать врача" : "Добавить врача"}
+          </h2>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          <InputBlock
-            label="Email"
-            value={form.email}
-            onChange={(v) => setForm({ ...form, email: v })}
-          />
+          <div className="grid gap-6 md:grid-cols-3">
+            <InputBlock
+              label="Email"
+              value={form.email}
+              onChange={(v) => setForm({ ...form, email: v })}
+            />
 
-          <InputBlock
-            label="Пароль врача"
-            type="password"
-            value={form.password}
-            onChange={(v) => setForm({ ...form, password: v })}
-            placeholder={editingId ? "Оставьте пустым" : "Введите пароль"}
-          />
+            <InputBlock
+              label="Пароль врача"
+              type="password"
+              value={form.password}
+              onChange={(v) => setForm({ ...form, password: v })}
+              placeholder={editingId ? "Оставьте пустым" : "Введите пароль"}
+            />
 
-          <InputBlock
-            label="ФИО врача"
-            value={form.fullName}
-            onChange={(v) => setForm({ ...form, fullName: v })}
-          />
+            <InputBlock
+              label="ФИО врача"
+              value={form.fullName}
+              onChange={(v) => setForm({ ...form, fullName: v })}
+            />
 
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">
-              Специальность
-            </label>
-            <Select
-              value={form.specialty}
-              onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-              options={specialties.map((s) => s.name)}
-              title="Специальность"
+            <div>
+              <label className="mb-1 block text-sm text-slate-600">
+                Специальность
+              </label>
+              <Select
+                value={form.specialty}
+                onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+                options={specialties.map((s) => s.name)}
+                title="Специальность"
+              />
+            </div>
+
+            <InputBlock
+              label="Кабинет"
+              type="number"
+              value={form.room}
+              onChange={(v) => setForm({ ...form, room: Number(v) })}
+            />
+
+            <InputBlock
+              label="Стаж (лет)"
+              type="number"
+              value={form.experience}
+              onChange={(v) => setForm({ ...form, experience: Number(v) })}
             />
           </div>
 
-          <InputBlock
-            label="Кабинет"
-            type="number"
-            value={form.room}
-            onChange={(v) => setForm({ ...form, room: Number(v) })}
-          />
-
-          <InputBlock
-            label="Стаж (лет)"
-            type="number"
-            value={form.experience}
-            onChange={(v) => setForm({ ...form, experience: Number(v) })}
-          />
-        </div>
-
-        <div className="mt-6 flex gap-4">
-          <button
-            onClick={submitForm}
-            className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-semibold"
-          >
-            {editingId ? "Сохранить" : "Добавить"}
-          </button>
-
-          {editingId && (
-            <button
-              onClick={resetForm}
-              className="bg-white/10 px-8 py-3 rounded-lg"
-            >
-              Отмена
+          <div className="mt-6 flex gap-4">
+            <button onClick={submitForm} className="clinic-btn-primary">
+              {editingId ? "Сохранить" : "Добавить"}
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* TABLE */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-white/10">
-            <tr>
-              <th className="p-4">ФИО</th>
-              <th className="p-4">Специальность</th>
-              <th className="p-4">Кабинет</th>
-              <th className="p-4">Стаж</th>
-              <th className="p-4 text-right">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {doctors.map((d) => (
-              <tr key={d.id} className="border-t border-white/10">
-                <td className="p-4">{d.user.fullName}</td>
-                <td className="p-4">
-                  {d.doctorSpecialties[0]?.specialty.name}
-                </td>
-                <td className="p-4">{d.room}</td>
-                <td className="p-4">{d.experience} лет</td>
-                <td className="p-4 text-right space-x-4">
-                  <button
-                    onClick={() => goToSchedule(d.id)}
-                    className="text-blue-400 hover:underline"
-                  >
-                    Расписание
-                  </button>
-                  <button
-                    onClick={() => editDoctor(d)}
-                    className="text-blue-400 hover:underline"
-                  >
-                    {editingId === d.id ? "Отменить" : "Редактировать"}
-                  </button>
-                  <button
-                    onClick={() => deleteDoctor(d.id)}
-                    className="text-red-400 hover:underline"
-                  >
-                    Удалить
-                  </button>
-                </td>
+            {editingId && (
+              <button
+                onClick={resetForm}
+                className="rounded-2xl border border-slate-200 px-8 py-3 font-semibold text-slate-900"
+              >
+                Отмена
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="clinic-surface overflow-hidden rounded-[2rem]">
+          <table className="w-full text-left text-slate-700">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="p-4">ФИО</th>
+                <th className="p-4">Специальность</th>
+                <th className="p-4">Кабинет</th>
+                <th className="p-4">Стаж</th>
+                <th className="p-4 text-right">Действия</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody>
+              {doctors.map((d) => (
+                <tr key={d.id} className="border-t border-slate-200">
+                  <td className="p-4">{d.user.fullName}</td>
+                  <td className="p-4">
+                    {d.doctorSpecialties[0]?.specialty.name}
+                  </td>
+                  <td className="p-4">{d.room}</td>
+                  <td className="p-4">{d.experience} лет</td>
+                  <td className="p-4 text-right space-x-4">
+                    <button
+                      onClick={() => goToSchedule(d.id)}
+                      className="font-medium text-cyan-700 hover:underline"
+                    >
+                      Расписание
+                    </button>
+                    <button
+                      onClick={() => editDoctor(d)}
+                      className="font-medium text-slate-700 hover:underline"
+                    >
+                      {editingId === d.id ? "Отменить" : "Редактировать"}
+                    </button>
+                    <button
+                      onClick={() => deleteDoctor(d.id)}
+                      className="font-medium text-rose-600 hover:underline"
+                    >
+                      Удалить
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   );
 }
-
-/* =====================
-   INPUT BLOCK
-===================== */
 
 function InputBlock({
   label,
@@ -298,13 +276,12 @@ function InputBlock({
 }) {
   return (
     <div>
-      <label className="block text-sm text-gray-300 mb-1">{label}</label>
+      <label className="mb-1 block text-sm text-slate-600">{label}</label>
       <Input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white/10 rounded-lg px-4 py-3"
       />
     </div>
   );
